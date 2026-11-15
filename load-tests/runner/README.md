@@ -23,7 +23,7 @@ python chaos_sqs.py --env test --region us-east-1 --duration 60 --report chaos.j
 Resultado esperado: sube `af-queue-age`, la cola se acumula y tras reactivar se vacía sin mensajes en la DLQ.
 
 ## Probar
-`python -m unittest discover -s load/test/runner -v` (10 pruebas offline: servidor local y clientes simulados).
+`python -m unittest discover -s load-tests/runner -v` (10 pruebas offline: servidor local y clientes simulados).
 
 ## Supuestos a confirmar contra el contrato
 La autenticación de `POST /v1/telemetry` (el contrato no la fija: JWT y/o HMAC son opcionales aquí) y SSM `/arquifusion/{env}/ingest/consumer-function-name` y `ingest/queue-url`.

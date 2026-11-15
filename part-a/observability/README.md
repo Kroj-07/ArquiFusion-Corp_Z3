@@ -14,7 +14,7 @@
 | af-sf2-executions-failed / af-sf2-zones-failed | fallo del pipeline / de zonas (métrica EMF `ZonesFailed`) |
 
 ## Lee de SSM
-El contrato §8 solo define `/arquifusion/{env}/ddb/` y `/events/bus-name`. **Estos cuatro nombres no están en el contrato: son supuestos, confirmar con IA-2** (o ajustar a lo que publique `infra/`):
+El contrato §8 solo define `/arquifusion/{env}/ddb/` y `/events/bus-name`. Estos cuatro nombres **ya los publican** `infra/part-a/ingest/template.yaml` y `part-a/sf2/template.yaml` (verificado con `scripts/check_templates.py`), pero siguen sin estar escritos en el contrato §8 (proponer añadirlos):
 `/arquifusion/{env}/ingest/function-name`, `ingest/queue-name`, `ingest/dlq-name`, `sf2/state-machine-arn`.
 El despliegue falla si alguno no existe: desplegar después de ingesta y SF-2.
 

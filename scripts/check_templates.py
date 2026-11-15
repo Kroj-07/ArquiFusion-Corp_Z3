@@ -38,9 +38,9 @@ NAMED = {  # recurso -> propiedad con el nombre fijo
     "AWS::StepFunctions::StateMachine": "StateMachineName",
 }
 TEMPLATES = [
-    "infra/root/template.yaml", "infra/security/template.yaml", "infra/data/template.yaml",
-    "infra/ingest/template.yaml", "infra/api/template.yaml", "infra/api/events-template.yaml",
-    "infra/bridge/template.yaml", "part-a/sf2/template.yaml", "part-a/observability/template.yaml",
+    "infra/part-a/root/template.yaml", "infra/part-a/security/template.yaml", "infra/part-a/data/template.yaml",
+    "infra/part-a/ingest/template.yaml", "infra/part-a/api/template.yaml", "infra/part-a/api/events-template.yaml",
+    "infra/part-a/bridge/template.yaml", "part-a/sf2/template.yaml", "part-a/observability/template.yaml",
 ]
 
 

@@ -11,5 +11,9 @@
 *.pem
 *.key
 **/local.settings.json
+**/.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
 
 **/dist/

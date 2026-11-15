@@ -24,7 +24,7 @@ Parameters:
   PromoteMinImprovement:
     Type: String
     Default: '0.02'
-    Description: Mejora relativa minima del MAE para promover el candidato.
+    Description: Mejora relativa minima del F1 (precision/recall, como fleet.model_runs de B) para promover el candidato.
   ScheduleExpression:
     Type: String
     Default: rate(1 day)
@@ -41,7 +41,6 @@ Globals:
     Runtime: python3.12
     Timeout: 30
     MemorySize: 128
-    Role: !Ref LabRoleArn
     Tracing: Active
     CodeUri: functions/
     Environment:
@@ -56,42 +55,49 @@ Resources:
   ListZonesFunction:
     Type: AWS::Serverless::Function
     Properties:
+      Role: !Ref LabRoleArn
       FunctionName: !Sub af-${Env}-sf2-list-zones
       Handler: pipeline.list_zones
 
   SyncFunction:
     Type: AWS::Serverless::Function
     Properties:
+      Role: !Ref LabRoleArn
       FunctionName: !Sub af-${Env}-sf2-sync-bq
       Handler: pipeline.sync_bigquery
 
   TrainFunction:
     Type: AWS::Serverless::Function
     Properties:
+      Role: !Ref LabRoleArn
       FunctionName: !Sub af-${Env}-sf2-train-zone
       Handler: pipeline.train_zone
 
   EvaluateFunction:
     Type: AWS::Serverless::Function
     Properties:
+      Role: !Ref LabRoleArn
       FunctionName: !Sub af-${Env}-sf2-evaluate
       Handler: pipeline.evaluate_model
 
   PromoteFunction:
     Type: AWS::Serverless::Function
     Properties:
+      Role: !Ref LabRoleArn
       FunctionName: !Sub af-${Env}-sf2-promote
       Handler: pipeline.promote_model
 
   BackupFunction:
     Type: AWS::Serverless::Function
     Properties:
+      Role: !Ref LabRoleArn
       FunctionName: !Sub af-${Env}-sf2-backup-azure
       Handler: pipeline.backup_to_azure
 
   SummarizeFunction:
     Type: AWS::Serverless::Function
     Properties:
+      Role: !Ref LabRoleArn
       FunctionName: !Sub af-${Env}-sf2-summarize
       Handler: pipeline.summarize
 

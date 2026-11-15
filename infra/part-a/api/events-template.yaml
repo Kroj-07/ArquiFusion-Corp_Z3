@@ -11,14 +11,15 @@ Description: >
 #   sam deploy -t infra/api/events-template.yaml --stack-name af-dev-events \
 #       --parameter-overrides Env=dev --region us-east-1 --resolve-s3
 # Publica en SSM (/arquifusion/{env}/...): events/bus-name, events/bus-arn, events/dlq-arn,
-# ddb/notifications-table y sns/{rol}-topic-arn.
+# data/notifications-table y sns/{rol}-topic-arn.
 # -----------------------------------------------------------------------------
 
 Parameters:
   Env:
     Type: String
-    Default: dev
-    AllowedPattern: '^[a-z0-9]{2,8}$'
+    AllowedValues: [shared, test]
+    Default: test
+    Description: Entorno. shared es el compartido; test el de pruebas (nombres af-{env}-* y /arquifusion/{env}/).
   LabRoleName:
     Type: String
     Default: LabRole
@@ -65,8 +66,7 @@ Globals:
   Function:
     Runtime: python3.12
     Architectures: [arm64]
-    Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${LabRoleName}'
-    CodeUri: ../../part-a/
+    CodeUri: ../../../part-a/
     MemorySize: 256
     Tracing: Active
     Tags:
@@ -191,6 +191,7 @@ Resources:
   NotifierFunction:
     Type: AWS::Serverless::Function
     Properties:
+      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${LabRoleName}'
       FunctionName: !Sub 'af-${Env}-notifier'
       Description: Notificaciones por rol (tabla 6.9) a SNS/SES y resumenes programados.
       Handler: events.notifier.handler
@@ -418,7 +419,7 @@ Resources:
   NotificationsTableParam:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub '/arquifusion/${Env}/ddb/notifications-table'
+      Name: !Sub '/arquifusion/${Env}/data/notifications-table'
       Type: String
       Value: !Ref NotificationsTable
   OperatorTopicParam:

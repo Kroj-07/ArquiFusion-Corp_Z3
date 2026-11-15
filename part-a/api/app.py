@@ -459,8 +459,8 @@ def list_alerts(caller, qs):
     zone = effective_zone(caller, id_param(qs, "zone_id"))
     limit = parse_limit(qs)
     table = get_table("TABLE_ALERTS")
-    zone_index = os.environ.get("ALERTS_ZONE_INDEX", "by_zone_created")
-    sev_index = os.environ.get("ALERTS_SEVERITY_INDEX", "by_severity_created")
+    zone_index = os.environ.get("ALERTS_ZONE_INDEX", "zone_id-created_at-index")
+    sev_index = os.environ.get("ALERTS_SEVERITY_INDEX", "severity-created_at-index")
 
     if caller.role == "operator":
         machine_id = operator_machine(caller, machine_id)

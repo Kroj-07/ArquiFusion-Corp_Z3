@@ -53,8 +53,17 @@ def _mock() -> bool:
 
 
 def _min_improvement() -> float:
-    """Mejora relativa mínima del MAE para promover el candidato."""
+    """Mejora relativa mínima del F1 (precision/recall) para promover el candidato."""
     return float(os.environ.get("PROMOTE_MIN_IMPROVEMENT", "0.02"))
+
+
+def _max_recall_drop() -> float:
+    """Caída absoluta máxima de recall tolerada: perder fallas reales es peor que un falso aviso."""
+    return float(os.environ.get("MAX_RECALL_DROP", "0.02"))
+
+
+def _f1(precision: float, recall: float) -> float:
+    return 0.0 if precision + recall == 0 else 2 * precision * recall / (precision + recall)
 
 
 def _unit(*parts: str) -> float:
@@ -87,35 +96,45 @@ def sync_bigquery(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
 
 
 def train_zone(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
-    """MOCK: la versión real lanzará el reentrenamiento (p. ej. BigQuery ML) de la zona."""
+    """MOCK: la versión real lanzará el reentrenamiento en BigQuery ML (Boosted Tree de B)."""
     zone = event["zone_id"]
     run = str(event.get("run_id", ""))
-    mae = round(0.05 + _unit("cand", zone, run) * 0.10, 4)  # 0.05 - 0.15
     return {
         "zone_id": zone,
         "run_id": run,
         "candidate": {
             "model_id": "af-model-%s-%s" % (zone.lower(), run[:8] or "local"),
-            "mae": mae,
+            # Mismas métricas que B guarda en fleet.model_runs (contrato 6.12).
+            "precision": round(0.60 + _unit("cand-p", zone, run) * 0.30, 4),
+            "recall": round(0.55 + _unit("cand-r", zone, run) * 0.35, 4),
+            "mean_lead_time_h": round(24 + _unit("cand-l", zone, run) * 48, 1),
             "mock": _mock(),
         },
     }
 
 
 def evaluate_model(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
-    """Compara el MAE del candidato con el del modelo vigente. `promote` alimenta la Choice del ASL."""
+    """Compara el candidato con el modelo vigente usando precision/recall (como model_runs de B).
+
+    Promueve solo si el F1 mejora al menos PROMOTE_MIN_IMPROVEMENT (relativo) Y el recall no cae
+    más de MAX_RECALL_DROP. `promote` alimenta la Choice del ASL.
+    """
     zone = event["zone_id"]
-    candidate_mae = float(event["candidate"]["mae"])
-    current_mae = round(0.06 + _unit("curr", zone) * 0.10, 4)  # 0.06 - 0.16
-    improvement = round((current_mae - candidate_mae) / current_mae, 4)
+    cand = event["candidate"]
+    cur_p = round(0.60 + _unit("curr-p", zone) * 0.25, 4)
+    cur_r = round(0.55 + _unit("curr-r", zone) * 0.30, 4)
+    cur_f1, cand_f1 = _f1(cur_p, cur_r), _f1(float(cand["precision"]), float(cand["recall"]))
+    improvement = round((cand_f1 - cur_f1) / cur_f1, 4)
     threshold = _min_improvement()
+    recall_ok = float(cand["recall"]) >= cur_r - _max_recall_drop()
     out = dict(event)
     out["evaluation"] = {
-        "current_mae": current_mae,
-        "candidate_mae": candidate_mae,
+        "current": {"precision": cur_p, "recall": cur_r, "f1": round(cur_f1, 4)},
+        "candidate": {"precision": cand["precision"], "recall": cand["recall"], "f1": round(cand_f1, 4)},
         "improvement": improvement,
         "threshold": threshold,
-        "promote": improvement >= threshold,
+        "recall_ok": recall_ok,
+        "promote": improvement >= threshold and recall_ok,
     }
     return out
 

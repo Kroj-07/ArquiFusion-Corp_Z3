@@ -42,7 +42,7 @@ REPL="${ENABLE_REPLICATION:-false}"
 
 if [ "$REPL" = "true" ]; then
   echo "== 3b Stack de replica en $OTHER (bucket destino de la replicacion de S3)"
-  sam deploy -t infra/data/template.yaml --stack-name "af-${ENV_NAME}-data-replica" --region "$OTHER" \
+  sam deploy -t infra/part-a/data/template.yaml --stack-name "af-${ENV_NAME}-data-replica" --region "$OTHER" \
     --parameter-overrides "Env=${ENV_NAME}" "StackRole=replica" "LabRoleArn=arn:aws:iam::${ACCOUNT}:role/LabRole" \
     --resolve-s3 --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND --no-confirm-changeset --no-fail-on-empty-changeset
 fi
@@ -57,7 +57,7 @@ OVERRIDES=("Env=${ENV_NAME}" "EnableGlobalTables=${GLOBAL}" "EnableReplication=$
 [ -n "${INCIDENT_WORKFLOW_ARN:-}" ] && OVERRIDES+=("IncidentWorkflowArn=${INCIDENT_WORKFLOW_ARN}")
 [ -n "${ALLOWED_ORIGIN:-}" ] && OVERRIDES+=("AllowedOrigin=${ALLOWED_ORIGIN}")
 
-sam deploy -t infra/root/template.yaml --stack-name "af-${ENV_NAME}-root" --region "$REGION" \
+sam deploy -t infra/part-a/root/template.yaml --stack-name "af-${ENV_NAME}-root" --region "$REGION" \
   --parameter-overrides "${OVERRIDES[@]}" \
   --resolve-s3 --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
   --no-confirm-changeset --no-fail-on-empty-changeset
