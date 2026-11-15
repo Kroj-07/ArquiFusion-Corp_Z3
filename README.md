@@ -52,6 +52,14 @@ La demo usa datos simulados. Sus vistas analíticas y explicaciones no son resul
 - API JWT para producción; acceso Cognito mediante PKCE. El selector de rol solo existe en demo.
 - Plantillas SAM y conector para las tablas de A; scripts de carga y recuperación.
 
+## Parte B (Nico)
+
+`part-b/` contiene el generador determinista de la telemetría sintética del contrato 6.2, 20 alertas de ejemplo 6.4, DDL y SQL de BigQuery ML, y la API firmada que consume C. El dataset del generador es de prueba, no datos de máquinas reales.
+
+- Inicio, pruebas, carga en BigQuery y despliegue: [part-b/README.md](part-b/README.md).
+- No se incluyeron claves ni credenciales. Para publicar la API real se necesitan un proyecto de Google Cloud con facturación/cuotas, permisos de Pub/Sub/BigQuery/Vertex AI y los secretos coordinados con Kiara.
+- El puente real de A debe mantener el JSON de telemetría acordado y mapear `metrics` a columnas al escribir en `fleet.telemetry`; la tabla B sigue el requisito de columnas aplanadas de 6.12.
+
 ## Integrar y desplegar
 
 1. Compartir [CONEXION_KIARA_NICO.md](contract/CONEXION_KIARA_NICO.md) con el equipo.

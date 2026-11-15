@@ -1,0 +1,12 @@
+{"machine_id":"MCH-000001","failure_type":"cooling_system","failure_at":"2026-11-12T12:00:00Z","suspected_component":"cooling_system"}
+{"machine_id":"MCH-000002","failure_type":"bearing","failure_at":"2026-11-01T12:00:00Z","suspected_component":"bearing"}
+{"machine_id":"MCH-000003","failure_type":"hydraulic_leak","failure_at":"2026-11-12T12:00:00Z","suspected_component":"hydraulic_system"}
+{"machine_id":"MCH-000004","failure_type":"injectors","failure_at":"2026-10-30T12:00:00Z","suspected_component":"fuel_injectors"}
+{"machine_id":"MCH-000005","failure_type":"cooling_system","failure_at":"2026-10-31T12:00:00Z","suspected_component":"cooling_system"}
+{"machine_id":"MCH-000006","failure_type":"bearing","failure_at":"2026-10-31T12:00:00Z","suspected_component":"bearing"}
+{"machine_id":"MCH-000007","failure_type":"hydraulic_leak","failure_at":"2026-11-03T12:00:00Z","suspected_component":"hydraulic_system"}
+{"machine_id":"MCH-000008","failure_type":"injectors","failure_at":"2026-11-12T12:00:00Z","suspected_component":"fuel_injectors"}
+{"machine_id":"MCH-000009","failure_type":"cooling_system","failure_at":"2026-11-11T12:00:00Z","suspected_component":"cooling_system"}
+{"machine_id":"MCH-000010","failure_type":"bearing","failure_at":"2026-11-09T12:00:00Z","suspected_component":"bearing"}
+{"machine_id":"MCH-000011","failure_type":"hydraulic_leak","failure_at":"2026-11-07T12:00:00Z","suspected_component":"hydraulic_system"}
+{"machine_id":"MCH-000012","failure_type":"injectors","failure_at":"2026-11-08T12:00:00Z","suspected_component":"fuel_injectors"}
