@@ -2,8 +2,11 @@
 """Modelo de costo por maquina/mes (reproducible). python cost_model.py [--interval 30] [--markdown]
 
 Precios de lista us-east-1 en USD, SIN capa gratuita (estimacion conservadora).
-VERIFICADOS en esta sesion contra fuentes de 2026: Lambda y DynamoDB on-demand.
-DE REFERENCIA (precio de lista conocido, no re-verificado): el resto; confirmar en las paginas oficiales.
+VERIFICADOS contra paginas/anuncios oficiales (15-nov-2026): Lambda, DynamoDB on-demand, SQS, Step Functions
+Standard, CloudWatch (logs, metricas, alarmas, dashboard), S3 Standard y PUT, Pub/Sub, suscripcion BigQuery,
+almacenamiento BigQuery y Azure Blob Hot LRS (East US).
+NO VERIFICADOS (precio de lista conocido): API Gateway HTTP, X-Ray, precio arm64 de Lambda (el modelo usa x86: conservador),
+operaciones de escritura de Azure Blob (no se modelan). Confirmar en la calculadora antes de la cifra final.
 """
 import argparse
 
@@ -14,16 +17,19 @@ P = {  # precio unitario                                   estado
     "ddb_read_per_m": 0.125,             # verificado
     "ddb_storage_gb": 0.25,              # verificado
     "apigw_http_per_m": 1.00,            # referencia (HTTP API)
-    "sqs_per_m": 0.40,                   # referencia (estandar)
-    "sfn_per_1k_transitions": 0.025,     # referencia (STANDARD)
-    "cw_logs_ingest_gb": 0.50,           # referencia
-    "cw_custom_metric": 0.30,            # referencia
-    "cw_alarm": 0.10,                    # referencia (estandar)
-    "cw_dashboard": 3.00,                # referencia
-    "xray_trace_per_m": 5.00,            # referencia
-    "pubsub_per_tib": 40.0,              # referencia (Google Cloud, Parte B)
-    "s3_gb": 0.023,                      # referencia (S3 Standard)
-    "s3_put_per_1k": 0.005,              # referencia
+    "sqs_per_m": 0.40,                   # verificado (estandar)
+    "sfn_per_1k_transitions": 0.025,     # verificado (STANDARD)
+    "cw_logs_ingest_gb": 0.50,           # verificado
+    "cw_custom_metric": 0.30,            # verificado
+    "cw_alarm": 0.10,                    # verificado (estandar)
+    "cw_dashboard": 3.00,                # verificado (3 gratis; aqui se cobra 1 sin capa gratuita)
+    "xray_trace_per_m": 5.00,            # NO verificado
+    "pubsub_per_tib": 40.0,              # verificado (Google Cloud; minimo 1 KB por mensaje)
+    "bq_subscription_per_tib": 50.0,     # verificado (suscripcion BigQuery de Pub/Sub)
+    "bq_storage_gib": 0.023,             # verificado (almacenamiento activo)
+    "azure_blob_hot_gb": 0.018,          # verificado (Hot LRS, East US)
+    "s3_gb": 0.023,                      # verificado (S3 Standard)
+    "s3_put_per_1k": 0.005,              # verificado
 }
 
 
@@ -43,7 +49,13 @@ def model(machines, interval_s, xray_rate=0.01, ingest_log_kb=0.7):
     rows["DynamoDB escrituras (2 por mensaje)"] = M * 2 / 1e6 * P["ddb_write_per_m"]
     rows["DynamoDB lecturas (API/consultas, 0,1 por mensaje)"] = M * 0.1 / 1e6 * P["ddb_read_per_m"]
     rows["DynamoDB almacenamiento (TTL 30 dias)"] = M * kb_msg / 1024 / 1024 * P["ddb_storage_gb"]
-    rows["Puente Pub/Sub (datos a Google, IA-4)"] = (M * kb_msg * 1024 / 1024**4) * P["pubsub_per_tib"]
+    # Pub/Sub cobra minimo 1 KB por mensaje; el puente envia 1 mensaje por lectura (fila plana ~0,15 KB en BigQuery).
+    pubsub_bytes = M * max(kb_msg, 1.0) * 1024
+    rows["Puente Pub/Sub (datos a Google, Parte A)"] = pubsub_bytes / 1024**4 * P["pubsub_per_tib"]
+    rows["Pub/Sub -> BigQuery (suscripcion, Parte B)"] = pubsub_bytes / 1024**4 * P["bq_subscription_per_tib"]
+    rows["BigQuery almacenamiento activo (30 dias, 0,15 KB/fila)"] = M * 0.15 / 1024 / 1024 / 1024 * P["bq_storage_gib"]
+    # Respaldo Parquet (~4x mas compacto que el JSON) en Azure Blob Hot; operaciones de escritura NO modeladas.
+    rows["Azure Blob respaldo Parquet (30 dias, sin operaciones)"] = M * kb_msg / 4 / 1024 / 1024 * P["azure_blob_hot_gb"]
     # Parquet en s3://af-{env}-arquifusion-data/telemetry/ (contrato 8): ~4x mas compacto, 1 objeto por ~1000 mensajes
     rows["S3 Parquet de telemetria (almacenamiento + PUT)"] = (M * kb_msg / 4 / 1024 / 1024) * P["s3_gb"] + (M / 1000 / 1000) * P["s3_put_per_1k"] * 1000 / 1000
     rows["CloudWatch Logs (ingesta + consumidora)"] = (M * ingest_log_kb + cons_inv * ingest_log_kb) / 1024 / 1024 * P["cw_logs_ingest_gb"]

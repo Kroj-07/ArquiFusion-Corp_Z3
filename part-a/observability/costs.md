@@ -5,8 +5,9 @@ Precios de lista **us-east-1**, en USD, **sin capa gratuita** (estimación conse
 
 ## Estado de los precios
 
-- **Verificados en esta sesión** contra fuentes de 2026: Lambda ($0,20 por millón de peticiones, $0,0000166667 por GB-s en x86) y DynamoDB on-demand ($0,625 por millón de escrituras, $0,125 por millón de lecturas, $0,25 por GB-mes de almacenamiento).
-- **De referencia, no re-verificados** (precio de lista que conozco): API Gateway HTTP, SQS, Step Functions, CloudWatch, X-Ray, S3 y Pub/Sub. Confirmar en las páginas oficiales antes de presentar la cifra final. Cada uno está en `cost_model.py`, diccionario `P`.
+- **Verificados** contra páginas o anuncios oficiales (15-nov-2026): Lambda, DynamoDB on-demand, SQS, Step Functions Standard, CloudWatch (logs, métricas, alarmas, dashboard), S3 Standard y PUT, Pub/Sub, suscripción BigQuery, almacenamiento BigQuery y Azure Blob Hot LRS (East US).
+- **No verificados**: API Gateway HTTP ($1,00/M), X-Ray ($5/M), precio arm64 de Lambda (las funciones son arm64 pero el modelo usa el precio x86, algo más caro: conservador) y operaciones de escritura de Azure Blob (no modeladas). Confirmar en las calculadoras antes de dar la cifra final. Todos están en `cost_model.py`, diccionario `P`.
+- Este modelo **no es una medición**: el plan v3 pide usar también el consumo real de la corrida de carga (`load-tests/runner`); cuando se ejecute, sustituir los supuestos de abajo por lo medido.
 
 ## Supuestos
 
@@ -33,11 +34,14 @@ Supuesto: 1 mensaje cada 30 s por maquina = 86,400 mensajes/maquina/mes
 | DynamoDB escrituras (2 por mensaje) | 0.1080 |
 | DynamoDB lecturas (API/consultas, 0,1 por mensaje) | 0.0011 |
 | DynamoDB almacenamiento (TTL 30 dias) | 0.0103 |
-| Puente Pub/Sub (datos a Google, IA-4) | 0.0016 |
+| Puente Pub/Sub (datos a Google, Parte A) | 0.0032 |
+| Pub/Sub -> BigQuery (suscripcion, Parte B) | 0.0040 |
+| BigQuery almacenamiento activo (30 dias, 0,15 KB/fila) | 0.0000 |
+| Azure Blob respaldo Parquet (30 dias, sin operaciones) | 0.0002 |
 | S3 Parquet de telemetria (almacenamiento + PUT) | 0.0007 |
 | CloudWatch Logs (ingesta + consumidora) | 0.0317 |
 | X-Ray (trazas muestreadas) | 0.0043 |
-| **Subtotal variable** | **0.3230** |
+| **Subtotal variable** | **0.3288** |
 
 | Componente fijo | USD/mes (total flota) |
 |---|---:|
@@ -49,19 +53,19 @@ Supuesto: 1 mensaje cada 30 s por maquina = 86,400 mensajes/maquina/mes
 
 | Flota | Variable/maq | Fijo/maq | **Total USD/maquina/mes** | Total flota USD/mes |
 |---:|---:|---:|---:|---:|
-| 100 | 0.3230 | 0.0622 | **0.3852** | 38.52 |
-| 1,000 | 0.3230 | 0.0062 | **0.3292** | 329.23 |
-| 5,000 | 0.3230 | 0.0012 | **0.3243** | 1621.28 |
+| 100 | 0.3288 | 0.0622 | **0.3910** | 39.10 |
+| 1,000 | 0.3288 | 0.0062 | **0.3351** | 335.05 |
+| 5,000 | 0.3288 | 0.0012 | **0.3301** | 1650.38 |
 
 ## Lectura rápida
 
 - **Costo total aproximado: US$ 0,32 a 0,38 por máquina al mes**, según el tamaño de la flota. A 5.000 máquinas son unos US$ 1.600 al mes.
 - Lo fijo (métricas, alarmas, dashboard) pesa solo con flotas pequeñas: a 100 máquinas añade ~US$ 0,06 por máquina; a 5.000 es despreciable.
 - **DynamoDB escrituras es lo más caro** (~1/3 del total). Una escritura por mensaje en vez de dos bajaría ~US$ 0,05 por máquina.
-- **API Gateway** es el segundo. Es un costo de entrada que depende de la decisión de arquitectura de IA-2/IA-3.
+- **API Gateway** es el segundo. Es un costo de entrada fijado por la arquitectura (API Gateway → SQS → Lambda).
 - **X-Ray es sensible al muestreo**: al 5 % costaría unos US$ 0,02 por máquina, cinco veces más que al 1 %. Por eso `observability/template.yaml` lo deja en 1 %.
-- **Lo que no incluye**: BigQuery y el respaldo en Azure Blob (Parte B / IA-4, contrato §11) no están modelados; son pequeños frente a lo anterior pero no cero. Tampoco transferencia de datos saliente.
-- **Opcionales de `infra/data/template.yaml` (IA-2), apagados por defecto y NO modelados**: replicación S3 entre regiones (`EnableReplication`: transferencia entre regiones + PUT de replicación) y Global Tables de Alerts/Incidents (`EnableGlobalTables`: escrituras replicadas, más caras). Activarlos sube el costo; avísame y los agrego al modelo.
+- **Lo que no incluye**: consultas y BigQuery ML (Parte B, se cobran por TiB procesado y dependen del uso), Vertex AI/Gemini, Cloud Run, operaciones de escritura en Azure Blob ni transferencia de datos saliente entre nubes.
+- **Opcionales de `infra/part-a/data/template.yaml`, apagados por defecto y NO modelados**: replicación S3 entre regiones (`EnableReplication`: transferencia entre regiones + PUT de replicación) y Global Tables de Alerts/Incidents (`EnableGlobalTables`: escrituras replicadas, más caras). Activarlos sube el costo; avísame y los agrego al modelo.
 - Las tablas Machines, Alerts, Incidents, Technicians e Inventory tienen PITR (respaldo continuo, se cobra por GB-mes); son tablas pequeñas, así que se ignoran. Telemetry no tiene PITR (el histórico vive en S3).
 - El SF-2 corre una vez al día con unas 25 transiciones: centavos al mes.
 

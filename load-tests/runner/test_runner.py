@@ -1,4 +1,4 @@
-"""Pruebas offline del generador de carga y del caos. python -m unittest discover -s load/test/runner -v"""
+"""Pruebas offline del generador de carga y del caos. python -m unittest discover -s load-tests/runner -v"""
 import json
 import threading
 import unittest
@@ -7,8 +7,8 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import load.runner.chaos_sqs as chaos_sqs  # noqa: E402
-import load.runner.load_test as load_test  # noqa: E402
+import chaos_sqs  # noqa: E402
+import load_test  # noqa: E402
 
 
 class Handler(BaseHTTPRequestHandler):

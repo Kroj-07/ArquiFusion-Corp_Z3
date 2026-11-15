@@ -32,6 +32,8 @@ from boto3.dynamodb.types import TypeDeserializer
 from google.cloud import pubsub_v1
 from google.oauth2 import service_account
 
+from flatten import flatten_telemetry
+
 logger = logging.getLogger()
 logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
 
@@ -111,6 +113,9 @@ def _record_to_payload(record):
         if not new_image:
             return None
         item = {k: _deserializer.deserialize(v) for k, v in new_image.items()}
+        # La tabla fleet.telemetry de B es plana: se aplana aquí (contrato 6.12). Ítems que no
+        # son telemetría (p. ej. otra tabla) se publican sin cambios.
+        item = flatten_telemetry(item) or item
         return json.dumps(item, default=_json_default).encode("utf-8"), {
             "source": "dynamodb",
             "aws_event_id": record.get("eventID", ""),

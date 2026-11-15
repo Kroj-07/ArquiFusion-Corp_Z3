@@ -91,7 +91,7 @@ Resources:
       FunctionName: !Sub af-${Env}-ingest
       Role: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${LabRoleName}"
       Description: Valida, deduplica y guarda telemetria (DynamoDB caliente + S3 Parquet).
-      CodeUri: ../../part-a/ingest/
+      CodeUri: ../../../part-a/ingest/
       Handler: app.lambda_handler
       MemorySize: 512
       Timeout: 30
@@ -131,7 +131,7 @@ Resources:
       FunctionName: !Sub af-${Env}-ingest-authorizer
       Role: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${LabRoleName}"
       Description: Autorizador Lambda (JWT HS256) del API HTTP de ingesta; solo rol admin.
-      CodeUri: ../../part-a/
+      CodeUri: ../../../part-a/
       Handler: api.authorizer.handler_http
       MemorySize: 128
       Timeout: 5

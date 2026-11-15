@@ -183,7 +183,7 @@ Resources:
   Sf2Stack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: ../../part-a/sf2/template.yaml
+      TemplateURL: ../../../part-a/sf2/template.yaml
       Parameters:
         Env: !Ref Env
         LabRoleArn: !GetAtt LabRoleArnParameter.Value
@@ -194,7 +194,7 @@ Resources:
   ObservabilityStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: ../../part-a/observability/template.yaml
+      TemplateURL: ../../../part-a/observability/template.yaml
       Parameters:
         Env: !Ref Env
         AlarmEmail: !Ref AlarmEmail

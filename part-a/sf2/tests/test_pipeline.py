@@ -76,9 +76,19 @@ class Handlers(unittest.TestCase):
     def test_evaluate_promote_flag_follows_threshold(self):
         cand = pipeline.train_zone({"zone_id": "Z1", "run_id": "r1"})
         os.environ["PROMOTE_MIN_IMPROVEMENT"] = "-1"
+        os.environ["MAX_RECALL_DROP"] = "1"
         self.assertTrue(pipeline.evaluate_model(cand)["evaluation"]["promote"])
         os.environ["PROMOTE_MIN_IMPROVEMENT"] = "5"
         self.assertFalse(pipeline.evaluate_model(cand)["evaluation"]["promote"])
+
+    def test_recall_drop_blocks_promotion_even_if_f1_improves(self):
+        cand = pipeline.train_zone({"zone_id": "Z1", "run_id": "r1"})
+        cand["candidate"].update(precision=0.99, recall=0.01)  # F1 bajo y recall muy peor
+        os.environ["PROMOTE_MIN_IMPROVEMENT"] = "-1"
+        os.environ["MAX_RECALL_DROP"] = "0.02"
+        ev = pipeline.evaluate_model(cand)["evaluation"]
+        self.assertFalse(ev["recall_ok"])
+        self.assertFalse(ev["promote"])
 
     def test_full_flow_like_the_state_machine(self):
         zones = pipeline.list_zones({})["zones"]

@@ -14,7 +14,7 @@ Un fallo en una zona se captura (`ZoneFailed`) y no tumba a las demás; un fallo
 | `LabRoleArn` | — (obligatorio) | rol de todo (Learner Lab no deja crear roles) |
 | `Mock` | true | BigQuery y entrenamiento simulados |
 | `Zones` | ZONA-NORTE-01,02 / SUR-01 | zonas del Map |
-| `PromoteMinImprovement` | 0.02 | mejora relativa mínima del MAE para promover |
+| `PromoteMinImprovement` | 0.02 | mejora relativa mínima del F1 (precision/recall) para promover |
 | `ScheduleEnabled` / `ScheduleExpression` | false / rate(1 day) | disparo diario (apagado por defecto) |
 
 Publica en SSM: `/arquifusion/{env}/sf2/state-machine-arn` y `.../state-machine-name`.

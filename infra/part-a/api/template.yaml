@@ -50,7 +50,7 @@ Globals:
     Architectures: [arm64]
     # Todas las Lambdas usan LabRole: SAM no crea ningun rol IAM.
     # Raiz de codigo = /part-a. Los handlers importan como api.*, shared.* (paquetes de namespace).
-    CodeUri: ../../part-a/
+    CodeUri: ../../../part-a/
     MemorySize: 256
     Timeout: 10
     Tracing: Active

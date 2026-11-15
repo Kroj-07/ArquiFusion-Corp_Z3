@@ -167,7 +167,7 @@ Respuesta `200 OK`:
 
 | Tema | Regla |
 |---|---|
-| Telemetría a Google Cloud | La Lambda puente publica en el tópico Pub/Sub `telemetry-raw` el mismo JSON de la sección 2 más `ingested_at`. Una suscripción escribe en `fleet.telemetry` |
+| Telemetría a Google Cloud | La Lambda puente publica en el tópico Pub/Sub `telemetry-raw` la lectura de la sección 2 **aplanada** (`latitude`, `longitude`, `zone_id`, `status` y las 8 métricas como columnas) más `ingested_at`, porque una suscripción BigQuery no transforma JSON anidado. Una suscripción escribe en `fleet.telemetry` |
 | Tablas BigQuery (dataset `fleet`) | `telemetry` (partición `DATE(timestamp)`, clúster `machine_id`), `machines`, `technicians`, `incidents` (las sincroniza SF-2), `alerts_out`, `model_runs` |
 | Alertas de Google Cloud a AWS | `POST /v1/alerts` con `x-timestamp` y `x-signature` = HMAC-SHA256 hex de `"{x-timestamp}.{cuerpo_crudo}"`. Secreto compartido `arquifusion/{env}/alert-hmac` (AWS Secrets Manager para verificar; Secret Manager de Google para firmar). Se rechaza con 401 si la marca de tiempo difiere más de 5 min. Idempotente por `alert_id` |
 | Secretos | Secrets Manager: `arquifusion/{env}/alert-hmac`, `jwt-signing`, `azure-sas`, `gcp-pubsub-key`. Configuración no secreta en SSM `/arquifusion/{env}/` |
@@ -179,6 +179,8 @@ Respuesta `200 OK`:
 | Idempotencia | Clave natural (`alert_id`, `incident_id`, `machine_id`+`timestamp`). Reenviar nunca duplica |
 
 ## 12. Pendientes de acuerdo
+
+- **Propuesta 2026-11-15 (por confirmar con A, B y C):** (1) la telemetría que cruza a Pub/Sub va aplanada (fila 'Telemetría a Google Cloud'); (2) `A_API_BASE` de B puede venir con o sin `/v1` (el SSM `api/base-url` ya lo incluye); (3) SF-2 promueve un modelo solo si el F1 mejora y el recall no cae, con las mismas métricas que B guarda en `fleet.model_runs`.
 
 - Aceptación de B del cambio del secreto HMAC (firmar `timestamp.cuerpo`, secreto `arquifusion/{env}/alert-hmac`).
 - Aceptación de C del Lambda Authorizer (JWT) en lugar de Cognito para la app web.

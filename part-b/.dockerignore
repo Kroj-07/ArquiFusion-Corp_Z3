@@ -1,0 +1,12 @@
+data/
+tests/
+generator/
+scripts/
+bigquery/
+deploy/
+README.md
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
