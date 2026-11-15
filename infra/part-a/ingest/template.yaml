@@ -45,7 +45,6 @@ Globals:
   Function:
     Runtime: python3.12
     Architectures: [arm64]
-    Role: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${LabRoleName}"
     Tracing: Active
     Tags:
       proyecto: arquifusion
@@ -90,6 +89,7 @@ Resources:
     DependsOn: IngestLogGroup
     Properties:
       FunctionName: !Sub af-${Env}-ingest
+      Role: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${LabRoleName}"
       Description: Valida, deduplica y guarda telemetria (DynamoDB caliente + S3 Parquet).
       CodeUri: ../../part-a/ingest/
       Handler: app.lambda_handler
@@ -129,6 +129,7 @@ Resources:
     DependsOn: IngestAuthorizerLogGroup
     Properties:
       FunctionName: !Sub af-${Env}-ingest-authorizer
+      Role: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${LabRoleName}"
       Description: Autorizador Lambda (JWT HS256) del API HTTP de ingesta; solo rol admin.
       CodeUri: ../../part-a/
       Handler: api.authorizer.handler_http

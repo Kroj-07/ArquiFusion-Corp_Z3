@@ -49,7 +49,6 @@ Globals:
     Runtime: python3.12
     Architectures: [arm64]
     # Todas las Lambdas usan LabRole: SAM no crea ningun rol IAM.
-    Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${LabRoleName}'
     # Raiz de codigo = /part-a. Los handlers importan como api.*, shared.* (paquetes de namespace).
     CodeUri: ../../part-a/
     MemorySize: 256
@@ -152,6 +151,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub 'af-${Env}-api-read'
+      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${LabRoleName}'
       Description: Endpoints de lectura de la API (enrutamiento, paginacion con next_token, errores 6.8).
       Handler: api.app.handler
       Environment:
@@ -235,6 +235,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub 'af-${Env}-api-alerts'
+      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${LabRoleName}'
       Description: POST /alerts (verifica HMAC, guarda en DynamoDB, publica alert.created en EventBridge).
       Handler: api.alerts.handler
       Environment:
@@ -260,6 +261,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub 'af-${Env}-api-callbacks'
+      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${LabRoleName}'
       Description: POST /incidents/{id}/ack|start|close (callbacks de Step Functions).
       Handler: api.incident_callbacks.handler
       Environment:
@@ -295,6 +297,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub 'af-${Env}-api-authorizer'
+      Role: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${LabRoleName}'
       Description: Autorizador Lambda de la API (JWT con rol).
       Handler: api.authorizer.handler
       Timeout: 5
