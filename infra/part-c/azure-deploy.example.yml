@@ -1,0 +1,26 @@
+name: ArquiFusion frontend on Azure
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['part-c/frontend/**']
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: part-c/frontend
+          api_location: ''
+          output_location: dist
+        env:
+          VITE_DATA_MODE: live
+          VITE_API_BASE: ${{ vars.VITE_API_BASE }}
+          VITE_COGNITO_DOMAIN: ${{ vars.VITE_COGNITO_DOMAIN }}
+          VITE_COGNITO_CLIENT_ID: ${{ vars.VITE_COGNITO_CLIENT_ID }}

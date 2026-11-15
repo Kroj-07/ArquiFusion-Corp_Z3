@@ -1,0 +1,675 @@
+{
+  "Comment": "C \u00b7 Standard. Callback tokens privados; cierre e inventario en una sola transacci\u00f3n.",
+  "StartAt": "RecordAlert",
+  "TimeoutSeconds": 172800,
+  "States": {
+    "RecordAlert": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "${CStateTable}",
+        "Item": {
+          "pk": {
+            "S.$": "States.Format('EVENT#{}', $.alert.alert_id)"
+          },
+          "sk": {
+            "S": "ALERT"
+          },
+          "alert": {
+            "S.$": "States.JsonToString($.alert)"
+          }
+        },
+        "ConditionExpression": "attribute_not_exists(pk)"
+      },
+      "ResultPath": null,
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "DynamoDB.ConditionalCheckFailedException"
+          ],
+          "Next": "AlreadyRecorded"
+        },
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.failure",
+          "Next": "QueueFailure"
+        }
+      ],
+      "Next": "CheckSeverity"
+    },
+    "AlreadyRecorded": {
+      "Type": "Succeed"
+    },
+    "CheckSeverity": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Or": [
+            {
+              "Variable": "$.alert.severity",
+              "StringEquals": "info"
+            },
+            {
+              "Variable": "$.alert.severity",
+              "StringEquals": "low"
+            }
+          ],
+          "Next": "RecordedOnly"
+        }
+      ],
+      "Default": "PrepareInParallel"
+    },
+    "RecordedOnly": {
+      "Type": "Succeed"
+    },
+    "PrepareInParallel": {
+      "Type": "Parallel",
+      "Branches": [
+        {
+          "StartAt": "Run",
+          "States": {
+            "Run": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${WorkflowFunctionArn}",
+                "Payload": {
+                  "action": "create",
+                  "alert.$": "$.alert"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2
+                }
+              ],
+              "OutputPath": "$.Payload",
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Run",
+          "States": {
+            "Run": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${WorkflowFunctionArn}",
+                "Payload": {
+                  "action": "context",
+                  "alert.$": "$.alert"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2
+                }
+              ],
+              "OutputPath": "$.Payload",
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "Run",
+          "States": {
+            "Run": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${WorkflowFunctionArn}",
+                "Payload": {
+                  "action": "explain",
+                  "alert.$": "$.alert"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2
+                }
+              ],
+              "OutputPath": "$.Payload",
+              "End": true
+            }
+          }
+        }
+      ],
+      "ResultPath": "$.prepared",
+      "Next": "SetContext",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.failure",
+          "Next": "QueueFailure"
+        }
+      ]
+    },
+    "SetContext": {
+      "Type": "Pass",
+      "Parameters": {
+        "alert.$": "$.alert",
+        "incident_id.$": "$.prepared[0].incident_id",
+        "excluded.$": "$.excluded",
+        "attempt": 0
+      },
+      "Next": "AssignTechnician"
+    },
+    "AssignTechnician": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "action": "assign",
+          "incident_id.$": "$.incident_id",
+          "excluded.$": "$.excluded"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "ResultSelector": {
+        "data.$": "$.Payload"
+      },
+      "ResultPath": "$.assignment",
+      "Next": "Assigned?",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.failure",
+          "Next": "QueueFailure"
+        }
+      ]
+    },
+    "Assigned?": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.assignment.data.assigned",
+          "BooleanEquals": true,
+          "Next": "NotifyTechnician"
+        }
+      ],
+      "Default": "NotifySupervisor"
+    },
+    "NotifySupervisor": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "TopicArn": "${TopicArn}",
+        "Message.$": "States.Format('Sin t\u00e9cnico disponible para {}. Se requiere asignaci\u00f3n manual.', $.incident_id)"
+      },
+      "ResultPath": null,
+      "Next": "WaitForAssignment",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.failure",
+          "Next": "QueueFailure"
+        }
+      ]
+    },
+    "WaitForAssignment": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "action": "wait",
+          "incident_id.$": "$.incident_id",
+          "phase": "assignment",
+          "task_token.$": "$$.Task.Token",
+          "execution.$": "$$.Execution.Id",
+          "ttl": 3630
+        }
+      },
+      "TimeoutSeconds": 3600,
+      "ResultPath": "$.manual_assignment",
+      "Next": "AssignTechnician",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.failure",
+          "Next": "QueueFailure"
+        }
+      ],
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ]
+    },
+    "NotifyTechnician": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "action": "notify",
+          "alert.$": "$.alert",
+          "role": "technician"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "ResultSelector": {
+        "data.$": "$.Payload"
+      },
+      "ResultPath": "$.technician_notification",
+      "Next": "WaitForAcknowledgement",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.failure",
+          "Next": "QueueFailure"
+        }
+      ]
+    },
+    "WaitForAcknowledgement": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "action": "wait",
+          "incident_id.$": "$.incident_id",
+          "phase": "ack",
+          "task_token.$": "$$.Task.Token",
+          "execution.$": "$$.Execution.Id",
+          "ttl": 330
+        }
+      },
+      "TimeoutSeconds": 300,
+      "ResultPath": "$.ack",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.Timeout"
+          ],
+          "ResultPath": "$.timeout",
+          "Next": "Escalate"
+        },
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.failure",
+          "Next": "QueueFailure"
+        }
+      ],
+      "Next": "RecordAcknowledgement",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ]
+    },
+    "RecordAcknowledgement": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "action": "ack",
+          "incident_id.$": "$.incident_id",
+          "callback.$": "$.ack"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "ResultSelector": {
+        "data.$": "$.Payload"
+      },
+      "ResultPath": "$.ack_record",
+      "Next": "WaitForClosure",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.failure",
+          "Next": "QueueFailure"
+        }
+      ]
+    },
+    "Escalate": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "action": "escalate",
+          "incident_id.$": "$.incident_id",
+          "excluded.$": "$.excluded",
+          "command_id.$": "States.Format('escalate:{}:{}', $.incident_id, $.attempt)"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "ResultSelector": {
+        "data.$": "$.Payload"
+      },
+      "ResultPath": "$.escalation",
+      "Next": "CheckAcknowledgementRace",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.failure",
+          "Next": "QueueFailure"
+        }
+      ]
+    },
+    "CheckAcknowledgementRace": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.escalation.data.already_acknowledged",
+          "BooleanEquals": true,
+          "Next": "WaitForClosure"
+        }
+      ],
+      "Default": "NextAttempt"
+    },
+    "NextAttempt": {
+      "Type": "Pass",
+      "Parameters": {
+        "alert.$": "$.alert",
+        "incident_id.$": "$.incident_id",
+        "excluded.$": "$.escalation.data.excluded",
+        "attempt.$": "States.MathAdd($.attempt, 1)"
+      },
+      "Next": "AttemptLimit"
+    },
+    "AttemptLimit": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.attempt",
+          "NumericGreaterThanEquals": 3,
+          "Next": "NotifySupervisor"
+        }
+      ],
+      "Default": "AssignTechnician"
+    },
+    "WaitForClosure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "action": "wait",
+          "incident_id.$": "$.incident_id",
+          "phase": "close",
+          "task_token.$": "$$.Task.Token",
+          "execution.$": "$$.Execution.Id",
+          "ttl": 86430
+        }
+      },
+      "TimeoutSeconds": 86400,
+      "ResultPath": "$.closure",
+      "Next": "FinalizeAtomically",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.failure",
+          "Next": "QueueFailure"
+        }
+      ],
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ]
+    },
+    "FinalizeAtomically": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${WorkflowFunctionArn}",
+        "Payload": {
+          "action": "finalize",
+          "incident_id.$": "$.incident_id",
+          "callback.$": "$.closure"
+        }
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "ResultSelector": {
+        "data.$": "$.Payload"
+      },
+      "ResultPath": "$.final",
+      "Next": "LowStockNotifications",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.failure",
+          "Next": "QueueFailure"
+        }
+      ]
+    },
+    "LowStockNotifications": {
+      "Type": "Map",
+      "ItemsPath": "$.final.data.stock_alerts",
+      "MaxConcurrency": 2,
+      "ItemProcessor": {
+        "ProcessorConfig": {
+          "Mode": "INLINE"
+        },
+        "StartAt": "NotifyLowStock",
+        "States": {
+          "NotifyLowStock": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+              "FunctionName": "${WorkflowFunctionArn}",
+              "Payload": {
+                "action": "stock_low",
+                "part.$": "$"
+              }
+            },
+            "Retry": [
+              {
+                "ErrorEquals": [
+                  "Lambda.ServiceException",
+                  "Lambda.AWSLambdaException",
+                  "Lambda.SdkClientException",
+                  "Lambda.TooManyRequestsException"
+                ],
+                "IntervalSeconds": 2,
+                "MaxAttempts": 3,
+                "BackoffRate": 2
+              }
+            ],
+            "OutputPath": "$.Payload",
+            "End": true
+          }
+        }
+      },
+      "ResultPath": null,
+      "Next": "PublishIncidentClosed",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.failure",
+          "Next": "QueueFailure"
+        }
+      ]
+    },
+    "PublishIncidentClosed": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "EventBusName": "${EventBusName}",
+            "Source": "arquifusion.operations",
+            "DetailType": "incident.closed",
+            "Detail.$": "States.JsonToString($.final.data)"
+          }
+        ]
+      },
+      "ResultPath": "$.published",
+      "Next": "CheckPublished",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.failure",
+          "Next": "QueueFailure"
+        }
+      ]
+    },
+    "CheckPublished": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.published.FailedEntryCount",
+          "NumericGreaterThan": 0,
+          "Next": "QueueFailure"
+        }
+      ],
+      "Default": "Resolved"
+    },
+    "QueueFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sqs:sendMessage",
+      "Parameters": {
+        "QueueUrl": "${ErrorsQueueUrl}",
+        "MessageBody.$": "States.JsonToString($)"
+      },
+      "ResultPath": null,
+      "Next": "Failed"
+    },
+    "Resolved": {
+      "Type": "Succeed"
+    },
+    "Failed": {
+      "Type": "Fail",
+      "Error": "INCIDENT_ACTION_REQUIRED"
+    }
+  }
+}

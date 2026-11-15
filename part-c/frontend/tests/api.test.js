@@ -1,0 +1,7 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import{request,riskTone,number,fmtTime}from'../src/api.js';
+test('severity boundaries match the contract',()=>{assert.equal(riskTone(90),'critical');assert.equal(riskTone(89),'high');assert.equal(riskTone(75),'high');assert.equal(riskTone(50),'medium');assert.equal(riskTone(49),'low');});
+test('missing numbers stay missing',()=>{assert.equal(number(null),'—');assert.equal(number(undefined),'—');assert.equal(number(0),'0');});
+test('times are shown in Lima',()=>{assert.match(fmtTime('2026-11-15T18:30:00Z'),/13:30/);});
+test('API errors are surfaced, never replaced with demo success',async()=>{const before=globalThis.fetch;globalThis.fetch=async()=>({ok:false,status:409,json:async()=>({error:{message:'Stock insuficiente'}})});try{await assert.rejects(request('/v1/test'),/Stock insuficiente/);}finally{globalThis.fetch=before;}});
+test('mutation sends the provided idempotency key and role only for demo',async()=>{const before=globalThis.fetch;let sent;globalThis.fetch=async(url,options)=>{sent=options;return{ok:true,json:async()=>({data:{accepted:true}})}};try{await request('/v1/test',{method:'POST',body:{x:1},role:'technician',key:'same-command'});assert.equal(sent.headers['Idempotency-Key'],'same-command');assert.equal(sent.headers['X-Demo-Role'],'technician');assert.equal(sent.headers.Authorization,undefined);}finally{globalThis.fetch=before;}});

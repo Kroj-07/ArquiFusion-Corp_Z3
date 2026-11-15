@@ -1,0 +1,4 @@
+boto3>=1.35,<2
+moto>=5.1,<6
+PyYAML>=6,<7
+# SciPy es opcional. Sin SciPy se usa el algoritmo Hungarian incluido.

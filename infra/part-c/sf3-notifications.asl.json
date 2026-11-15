@@ -1,0 +1,232 @@
+{
+  "Comment": "C \u00b7 Express. Inbox deduplicado por alert_id/rol/alcance. SNS puede entregar m\u00e1s de una vez.",
+  "StartAt": "FanOutByRole",
+  "TimeoutSeconds": 240,
+  "States": {
+    "FanOutByRole": {
+      "Type": "Parallel",
+      "Branches": [
+        {
+          "StartAt": "NotifyRole",
+          "States": {
+            "NotifyRole": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${WorkflowFunctionArn}",
+                "Payload": {
+                  "action": "notify",
+                  "alert.$": "$.alert",
+                  "role": "operator"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2
+                }
+              ],
+              "OutputPath": "$.Payload",
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "NotifyRole",
+          "States": {
+            "NotifyRole": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${WorkflowFunctionArn}",
+                "Payload": {
+                  "action": "notify",
+                  "alert.$": "$.alert",
+                  "role": "technician"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2
+                }
+              ],
+              "OutputPath": "$.Payload",
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "NotifyRole",
+          "States": {
+            "NotifyRole": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${WorkflowFunctionArn}",
+                "Payload": {
+                  "action": "notify",
+                  "alert.$": "$.alert",
+                  "role": "maintenance"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2
+                }
+              ],
+              "OutputPath": "$.Payload",
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "NotifyRole",
+          "States": {
+            "NotifyRole": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${WorkflowFunctionArn}",
+                "Payload": {
+                  "action": "notify",
+                  "alert.$": "$.alert",
+                  "role": "supervisor"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2
+                }
+              ],
+              "OutputPath": "$.Payload",
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "NotifyRole",
+          "States": {
+            "NotifyRole": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${WorkflowFunctionArn}",
+                "Payload": {
+                  "action": "notify",
+                  "alert.$": "$.alert",
+                  "role": "admin"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2
+                }
+              ],
+              "OutputPath": "$.Payload",
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "NotifyRole",
+          "States": {
+            "NotifyRole": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${WorkflowFunctionArn}",
+                "Payload": {
+                  "action": "notify",
+                  "alert.$": "$.alert",
+                  "role": "manager"
+                }
+              },
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException",
+                    "Lambda.TooManyRequestsException"
+                  ],
+                  "IntervalSeconds": 2,
+                  "MaxAttempts": 3,
+                  "BackoffRate": 2
+                }
+              ],
+              "OutputPath": "$.Payload",
+              "End": true
+            }
+          }
+        }
+      ],
+      "ResultPath": null,
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.failure",
+          "Next": "QueueFailure"
+        }
+      ],
+      "Next": "Delivered"
+    },
+    "QueueFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sqs:sendMessage",
+      "Parameters": {
+        "QueueUrl": "${ErrorsQueueUrl}",
+        "MessageBody.$": "States.JsonToString($)"
+      },
+      "ResultPath": null,
+      "Next": "Failed"
+    },
+    "Failed": {
+      "Type": "Fail",
+      "Error": "NOTIFICATION_ACTION_REQUIRED"
+    },
+    "Delivered": {
+      "Type": "Succeed"
+    }
+  }
+}

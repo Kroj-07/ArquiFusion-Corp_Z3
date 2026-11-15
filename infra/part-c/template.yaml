@@ -1,0 +1,182 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Z3 Parte C - API JWT, coordinacion, SF1 y SF3. Integra datos de Kiara y analitica de Nico.
+Parameters:
+  LambdaRoleArn:
+    Type: String
+  StatesRoleArn:
+    Type: String
+  AAdapterArn:
+    Type: String
+    Description: Lambda de Kiara que implementa contract/a-adapter.json; misma cuenta y region
+  JwtIssuer:
+    Type: String
+    Description: https://cognito-idp.REGION.amazonaws.com/POOL_ID
+  JwtAudience:
+    Type: String
+    Description: Client ID del cliente publico Cognito sin client secret
+  FrontendOrigin:
+    Type: String
+    Description: Origen HTTPS de Azure Static Web Apps (sin ruta)
+  ExistingEventBusName:
+    Type: String
+    Default: arquifusion-events
+  BApiBase:
+    Type: String
+    Default: ''
+  BAuthSecretArn:
+    Type: String
+    Default: ''
+Globals:
+  Function:
+    Runtime: python3.12
+    CodeUri: ../../part-c/backend/
+    MemorySize: 256
+    Timeout: 60
+    Environment:
+      Variables:
+        A_ADAPTER_ARN: !Ref AAdapterArn
+        C_STATE_TABLE: !Ref Coordination
+        B_API_BASE: !Ref BApiBase
+        B_AUTH_SECRET_ARN: !Ref BAuthSecretArn
+Resources:
+  Coordination:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: pk, AttributeType: S}
+        - {AttributeName: sk, AttributeType: S}
+        - {AttributeName: gsi_pk, AttributeType: S}
+        - {AttributeName: gsi_sk, AttributeType: S}
+      KeySchema:
+        - {AttributeName: pk, KeyType: HASH}
+        - {AttributeName: sk, KeyType: RANGE}
+      GlobalSecondaryIndexes:
+        - IndexName: notice-index
+          KeySchema:
+            - {AttributeName: gsi_pk, KeyType: HASH}
+            - {AttributeName: gsi_sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+      PointInTimeRecoverySpecification: {PointInTimeRecoveryEnabled: true}
+      SSESpecification: {SSEEnabled: true}
+      TimeToLiveSpecification: {AttributeName: expires_at, Enabled: true}
+  Api:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins: [!Ref FrontendOrigin]
+        AllowMethods: [GET, POST, OPTIONS]
+        AllowHeaders: [Authorization, Content-Type, Idempotency-Key]
+      Auth:
+        DefaultAuthorizer: CognitoJwt
+        Authorizers:
+          CognitoJwt:
+            IdentitySource: $request.header.Authorization
+            JwtConfiguration:
+              issuer: !Ref JwtIssuer
+              audience: [!Ref JwtAudience]
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Role: !Ref LambdaRoleArn
+      Handler: afc.cloud.api_handler
+      Events:
+        Routes:
+          Type: HttpApi
+          Properties: {ApiId: !Ref Api, Path: '/v1/{proxy+}', Method: ANY}
+  WorkflowFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Role: !Ref LambdaRoleArn
+      Handler: afc.cloud.workflow_handler
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref Topic
+  Receiver:
+    Type: AWS::Serverless::Function
+    Properties:
+      Role: !Ref LambdaRoleArn
+      Handler: afc.cloud.event_handler
+      Environment:
+        Variables:
+          SF1_ARN: !Ref SF1
+          SF3_ARN: !Ref SF3
+      Events:
+        AlertEvent:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName: !Ref ExistingEventBusName
+            Pattern:
+              detail-type: [alert.created]
+            RetryPolicy: {MaximumEventAgeInSeconds: 3600, MaximumRetryAttempts: 10}
+            DeadLetterConfig: {Arn: !GetAtt Errors.Arn}
+  ReceiverAsync:
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName: !Ref Receiver
+      Qualifier: $LATEST
+      MaximumEventAgeInSeconds: 3600
+      MaximumRetryAttempts: 2
+      DestinationConfig:
+        OnFailure: {Destination: !GetAtt Errors.Arn}
+  SF1:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Type: STANDARD
+      Role: !Ref StatesRoleArn
+      DefinitionUri: sf1-incident.asl.json
+      DefinitionSubstitutions:
+        WorkflowFunctionArn: !GetAtt WorkflowFunction.Arn
+        CStateTable: !Ref Coordination
+        TopicArn: !Ref Topic
+        EventBusName: !Ref ExistingEventBusName
+        ErrorsQueueUrl: !Ref Errors
+      Logging:
+        Level: ERROR
+        IncludeExecutionData: false
+        Destinations:
+          - CloudWatchLogsLogGroup: {LogGroupArn: !GetAtt WorkflowLogs.Arn}
+  SF3:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Type: EXPRESS
+      Role: !Ref StatesRoleArn
+      DefinitionUri: sf3-notifications.asl.json
+      DefinitionSubstitutions:
+        WorkflowFunctionArn: !GetAtt WorkflowFunction.Arn
+        ErrorsQueueUrl: !Ref Errors
+      Logging:
+        Level: ALL
+        IncludeExecutionData: false
+        Destinations:
+          - CloudWatchLogsLogGroup: {LogGroupArn: !GetAtt WorkflowLogs.Arn}
+  WorkflowLogs:
+    Type: AWS::Logs::LogGroup
+    Properties: {RetentionInDays: 7}
+  Errors:
+    Type: AWS::SQS::Queue
+    Properties: {MessageRetentionPeriod: 1209600, SqsManagedSseEnabled: true}
+  ErrorsPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues: [!Ref Errors]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: events.amazonaws.com}
+            Action: sqs:SendMessage
+            Resource: !GetAtt Errors.Arn
+            Condition: {StringEquals: {'aws:SourceAccount': !Ref 'AWS::AccountId'}}
+  Topic:
+    Type: AWS::SNS::Topic
+Outputs:
+  ApiBase: {Value: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com'}
+  SF1Arn: {Value: !Ref SF1}
+  SF3Arn: {Value: !Ref SF3}
+  CoordinationTable: {Value: !Ref Coordination}
+  ErrorsQueue: {Value: !Ref Errors}
+  TopicArn: {Value: !Ref Topic}

@@ -1,0 +1,15 @@
+.venv/
+**/node_modules/
+**/.local/
+**/__pycache__/
+*.pyc
+**/.aws-sam/
+**/samconfig.toml
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+**/local.settings.json
+
+**/dist/
