@@ -1,0 +1,5 @@
+project_id     = "your-gcp-project-id"
+region         = "us-central1"
+dataset_location = "US"
+container_image = "us-central1-docker.pkg.dev/your-gcp-project-id/arquifusion/part-b:latest"
+aws_api_base   = "https://your-aws-api.example.com"
