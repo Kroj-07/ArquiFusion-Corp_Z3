@@ -215,30 +215,30 @@ Resources:
         ]}
 
   # ---------- X-Ray ----------
-  XRaySamplingRule:
-    Type: AWS::XRay::SamplingRule
-    Properties:
-      SamplingRule:
-        RuleName: !Sub af-${Env}-sampling
-        Priority: 1000
-        FixedRate: !Ref XRayFixedRate
-        ReservoirSize: 1
-        ServiceName: '*'
-        ServiceType: '*'
-        Host: '*'
-        HTTPMethod: '*'
-        URLPath: '*'
-        ResourceARN: '*'
-        Version: 1
+  #XRaySamplingRule:
+   # Type: AWS::XRay::SamplingRule
+    #Properties:
+     # SamplingRule:
+      #  RuleName: !Sub af-${Env}-sampling
+       # Priority: 1000
+     #   FixedRate: !Ref XRayFixedRate
+      #  ReservoirSize: 1
+      #  ServiceName: '*'
+      #  ServiceType: '*'
+       # Host: '*'
+       # HTTPMethod: '*'
+       # URLPath: '*'
+       # ResourceARN: '*'
+       # Version: 1
 
-  XRayErrorsGroup:
-    Type: AWS::XRay::Group
-    Properties:
-      GroupName: !Sub af-${Env}-slow-or-failed
-      FilterExpression: 'responsetime > 1 OR fault = true OR error = true'
-      InsightsConfiguration:
-        InsightsEnabled: false
-        NotificationsEnabled: false
+  #XRayErrorsGroup:
+   # Type: AWS::XRay::Group
+   # Properties:
+    #  GroupName: !Sub af-${Env}-slow-or-failed
+    #  FilterExpression: 'responsetime > 1 OR fault = true OR error = true'
+     # InsightsConfiguration:
+      #  InsightsEnabled: false
+      #  NotificationsEnabled: false
 
   AlarmTopicArnParam:
     Type: AWS::SSM::Parameter

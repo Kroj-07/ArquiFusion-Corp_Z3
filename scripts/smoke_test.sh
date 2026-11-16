@@ -5,7 +5,7 @@
 set -euo pipefail
 ENV_NAME="${1:-test}"; REGION="${2:-us-east-1}"
 cd "$(dirname "$0")/.."
-ssm() { aws ssm get-parameter --name "/arquifusion/${ENV_NAME}/$1" --region "$REGION" --query Parameter.Value --output text; }
+ssm() { aws ssm get-parameter --name "/arquifusion/${ENV_NAME}/$1" --region "$REGION" --query Parameter.Value --output text | tr -d '\r'; }
 ok() { echo "  OK   $*"; }
 fail() { echo "  FALLA $*" >&2; FAILED=1; }
 FAILED=0
@@ -16,7 +16,7 @@ for n in ingest/queue-url ingest/api-url data/telemetry-table data/machines-tabl
 done
 
 INGEST_URL="$(ssm ingest/api-url)/v1/telemetry"
-TOKEN=$(python3 part-a/api/mint_token.py --env "$ENV_NAME" --role admin --sub smoke)
+TOKEN=$(python part-a/api/mint_token.py --env "$ENV_NAME" --role admin --sub smoke)
 MID="MCH-999001"
 TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 BODY=$(cat <<JSON
@@ -54,7 +54,7 @@ if [ -n "$API_URL" ]; then
 
   echo "== Alerta firmada (POST /alerts)"
   SECRET=$(aws secretsmanager get-secret-value --secret-id "arquifusion/${ENV_NAME}/alert-hmac" --region "$REGION" --query SecretString --output text)
-  ALERT=$(python3 - <<PY
+  ALERT=$(python - <<PY
 import json
 a=json.load(open("contract/examples/alert.json"))
 a["alert_id"]="ALT-999001"; a["machine_id"]="${MID}"
