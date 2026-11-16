@@ -23,6 +23,8 @@ class BigQueryRepository:
 
     def _rows(self, sql, parameters=()):
         from google.cloud import bigquery
+        if not isinstance(parameters, (list, tuple)):
+            parameters = [parameters]
         config = bigquery.QueryJobConfig(query_parameters=list(parameters))
         return [dict(row.items()) for row in self.client.query(sql, job_config=config).result()]
 

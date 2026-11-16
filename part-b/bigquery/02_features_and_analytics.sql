@@ -75,7 +75,7 @@ WITH latest AS (
 )
 SELECT
   machine_id,
-  GREATEST(0, 500 - MOD(operating_hours_total, 500)) AS remaining_operating_hours,
+  GREATEST(0, 500 - (operating_hours_total - 500 * FLOOR(operating_hours_total / 500))) AS remaining_operating_hours,
   "Intervalo base de mantenimiento de 500 horas; validar con el fabricante" AS basis
 FROM latest;
 
