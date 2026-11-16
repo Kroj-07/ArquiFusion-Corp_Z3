@@ -1,0 +1,552 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Z3 piloto AWS + Cloudflare AI + Backblaze. Usa las tablas del stack af-test-data.
+Parameters:
+  LambdaRoleArn:
+    Type: String
+  StatesRoleArn:
+    Type: String
+  FrontendOrigin:
+    Type: String
+    Default: http://localhost:5173
+    Description: Origen exacto de la web; al publicar, actualizar con su URL HTTPS
+  BApiBase:
+    Type: String
+    Default: ''
+    Description: URL HTTPS del Worker Cloudflare; puede quedar vacía en el primer
+      despliegue
+  MachinesTable:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /arquifusion/test/data/machines-table
+  IncidentsTable:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /arquifusion/test/data/incidents-table
+  TechniciansTable:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /arquifusion/test/data/technicians-table
+  InventoryTable:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /arquifusion/test/data/inventory-table
+  AlertsTable:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /arquifusion/test/data/alerts-table
+  TelemetryTable:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /arquifusion/test/data/telemetry-table
+  DataBucket:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /arquifusion/test/data/telemetry-bucket
+  PartAEventBusName:
+    Type: String
+    Default: ''
+    Description: Bus de A en esta misma cuenta. Vacio en piloto independiente.
+  PartAIngestUrl:
+    Type: String
+    Default: ''
+  GcpApiBase:
+    Type: String
+    Default: ''
+    Description: Cloud Run de Nico para analitica; no es el Worker Cloudflare.
+Globals:
+  Function:
+    Runtime: python3.12
+    CodeUri: ../../part-c/backend/
+    MemorySize: 256
+    Timeout: 60
+    Environment:
+      Variables:
+        A_ADAPTER_ARN:
+          Fn::GetAtt:
+          - Adapter
+          - Arn
+        C_STATE_TABLE:
+          Ref: Coordination
+        B_API_BASE:
+          Ref: BApiBase
+        B_AUTH_SECRET_ARN:
+          Ref: CloudflareSecret
+        PILOT_JWT_SECRET:
+          Ref: JwtSecret
+        INGEST_QUEUE:
+          Ref: IngestQueue
+        GCP_API_BASE:
+          Ref: GcpApiBase
+        GCP_AUTH_SECRET_ARN:
+          Ref: GcpAuthSecret
+Resources:
+  Coordination:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+      - AttributeName: pk
+        AttributeType: S
+      - AttributeName: sk
+        AttributeType: S
+      - AttributeName: gsi_pk
+        AttributeType: S
+      - AttributeName: gsi_sk
+        AttributeType: S
+      KeySchema:
+      - AttributeName: pk
+        KeyType: HASH
+      - AttributeName: sk
+        KeyType: RANGE
+      GlobalSecondaryIndexes:
+      - IndexName: notice-index
+        KeySchema:
+        - AttributeName: gsi_pk
+          KeyType: HASH
+        - AttributeName: gsi_sk
+          KeyType: RANGE
+        Projection:
+          ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+  Api:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+        - Ref: FrontendOrigin
+        AllowMethods:
+        - GET
+        - POST
+        - OPTIONS
+        AllowHeaders:
+        - Authorization
+        - Content-Type
+        - Idempotency-Key
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 20
+        ThrottlingRateLimit: 10
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Role:
+        Ref: LambdaRoleArn
+      Handler: afc.pilot.api_handler
+      Events:
+        Routes:
+          Type: HttpApi
+          Properties:
+            ApiId:
+              Ref: Api
+            Path: /v1/{proxy+}
+            Method: ANY
+  WorkflowFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Role:
+        Ref: LambdaRoleArn
+      Handler: afc.pilot.workflow_handler
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN:
+            Ref: Topic
+  Receiver:
+    Type: AWS::Serverless::Function
+    Properties:
+      Role:
+        Ref: LambdaRoleArn
+      Handler: afc.cloud.event_handler
+      Environment:
+        Variables:
+          SF1_ARN:
+            Ref: SF1
+          SF3_ARN:
+            Ref: SF3
+      Events:
+        AlertEvent:
+          Type: EventBridgeRule
+          Properties:
+            EventBusName:
+              Ref: PilotBus
+            Pattern:
+              detail-type:
+              - alert.created
+            RetryPolicy:
+              MaximumEventAgeInSeconds: 3600
+              MaximumRetryAttempts: 10
+            DeadLetterConfig:
+              Arn:
+                Fn::GetAtt:
+                - Errors
+                - Arn
+  ReceiverAsync:
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName:
+        Ref: Receiver
+      Qualifier: $LATEST
+      MaximumEventAgeInSeconds: 3600
+      MaximumRetryAttempts: 2
+      DestinationConfig:
+        OnFailure:
+          Destination:
+            Fn::GetAtt:
+            - Errors
+            - Arn
+  SF1:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Type: STANDARD
+      Role:
+        Ref: StatesRoleArn
+      DefinitionUri: ../part-c/sf1-incident.asl.json
+      DefinitionSubstitutions:
+        WorkflowFunctionArn:
+          Fn::GetAtt:
+          - WorkflowFunction
+          - Arn
+        CStateTable:
+          Ref: Coordination
+        TopicArn:
+          Ref: Topic
+        EventBusName:
+          Ref: PilotBus
+        ErrorsQueueUrl:
+          Ref: Errors
+      Logging:
+        Level: ERROR
+        IncludeExecutionData: false
+        Destinations:
+        - CloudWatchLogsLogGroup:
+            LogGroupArn:
+              Fn::GetAtt:
+              - WorkflowLogs
+              - Arn
+  SF3:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Type: EXPRESS
+      Role:
+        Ref: StatesRoleArn
+      DefinitionUri: ../part-c/sf3-notifications.asl.json
+      DefinitionSubstitutions:
+        WorkflowFunctionArn:
+          Fn::GetAtt:
+          - WorkflowFunction
+          - Arn
+        ErrorsQueueUrl:
+          Ref: Errors
+      Logging:
+        Level: ALL
+        IncludeExecutionData: false
+        Destinations:
+        - CloudWatchLogsLogGroup:
+            LogGroupArn:
+              Fn::GetAtt:
+              - WorkflowLogs
+              - Arn
+  WorkflowLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 7
+  Errors:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+  ErrorsPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+      - Ref: Errors
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: events.amazonaws.com
+          Action: sqs:SendMessage
+          Resource:
+            Fn::GetAtt:
+            - Errors
+            - Arn
+          Condition:
+            StringEquals:
+              aws:SourceAccount:
+                Ref: AWS::AccountId
+  Topic:
+    Type: AWS::SNS::Topic
+  PilotBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: af-pilot-events
+  JwtSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      GenerateSecretString:
+        SecretStringTemplate: '{}'
+        GenerateStringKey: jwt_secret
+        PasswordLength: 48
+        ExcludePunctuation: true
+  CloudflareSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      GenerateSecretString:
+        SecretStringTemplate: '{}'
+        GenerateStringKey: shared_key
+        PasswordLength: 48
+        ExcludePunctuation: true
+  B2Secret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      SecretString: '{}'
+      Description: Credenciales B2; configurar con scripts/pilot.py configure-b2
+  Commands:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+      - AttributeName: pk
+        AttributeType: S
+      - AttributeName: sk
+        AttributeType: S
+      KeySchema:
+      - AttributeName: pk
+        KeyType: HASH
+      - AttributeName: sk
+        KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+  Adapter:
+    Type: AWS::Serverless::Function
+    Properties:
+      Role:
+        Ref: LambdaRoleArn
+      Handler: afc.a_adapter.handler
+      Environment:
+        Variables:
+          MACHINES_TABLE: &id001
+            Ref: MachinesTable
+          INCIDENTS_TABLE: &id002
+            Ref: IncidentsTable
+          TECHNICIANS_TABLE: &id003
+            Ref: TechniciansTable
+          INVENTORY_TABLE: &id004
+            Ref: InventoryTable
+          ALERTS_TABLE: &id005
+            Ref: AlertsTable
+          TELEMETRY_TABLE: &id006
+            Ref: TelemetryTable
+          A_ADAPTER_ARN: unused
+          C_COMMANDS_TABLE:
+            Ref: Commands
+  IngestDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 604800
+      SqsManagedSseEnabled: true
+  IngestQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 360
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+          - IngestDlq
+          - Arn
+        maxReceiveCount: 3
+  Ingest:
+    Type: AWS::Serverless::Function
+    Properties:
+      Role:
+        Ref: LambdaRoleArn
+      Handler: afc.pilot.ingest_handler
+      Environment:
+        Variables:
+          MACHINES_TABLE: *id001
+          INCIDENTS_TABLE: *id002
+          TECHNICIANS_TABLE: *id003
+          INVENTORY_TABLE: *id004
+          ALERTS_TABLE: *id005
+          TELEMETRY_TABLE: *id006
+          DATA_BUCKET:
+            Ref: DataBucket
+          EVENT_BUS:
+            Ref: PilotBus
+      Events:
+        Readings:
+          Type: SQS
+          Properties:
+            Queue:
+              Fn::GetAtt:
+              - IngestQueue
+              - Arn
+            BatchSize: 5
+            FunctionResponseTypes:
+            - ReportBatchItemFailures
+  BackupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Role:
+        Ref: LambdaRoleArn
+      Handler: afc.pilot_backup.handler
+      Environment:
+        Variables:
+          MACHINES_TABLE: *id001
+          INCIDENTS_TABLE: *id002
+          TECHNICIANS_TABLE: *id003
+          INVENTORY_TABLE: *id004
+          ALERTS_TABLE: *id005
+          TELEMETRY_TABLE: *id006
+          DATA_BUCKET:
+            Ref: DataBucket
+          B2_SECRET_ARN:
+            Ref: B2Secret
+  BackupWorkflow:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Type: STANDARD
+      Role:
+        Ref: StatesRoleArn
+      Definition:
+        StartAt: ExportAndCopy
+        States:
+          ExportAndCopy:
+            Type: Task
+            Resource: arn:aws:states:::lambda:invoke
+            Parameters:
+              FunctionName:
+                Fn::GetAtt:
+                - BackupFunction
+                - Arn
+              Payload:
+                action: backup
+            OutputPath: $.Payload
+            Retry:
+            - ErrorEquals:
+              - States.TaskFailed
+              IntervalSeconds: 2
+              MaxAttempts: 2
+              BackoffRate: 2
+            Next: RestoreAndCompare
+          RestoreAndCompare:
+            Type: Task
+            Resource: arn:aws:states:::lambda:invoke
+            Parameters:
+              FunctionName:
+                Fn::GetAtt:
+                - BackupFunction
+                - Arn
+              Payload.$: $
+            OutputPath: $.Payload
+            End: true
+        TimeoutSeconds: 180
+      Logging:
+        Level: ERROR
+        IncludeExecutionData: false
+        Destinations:
+        - CloudWatchLogsLogGroup:
+            LogGroupArn:
+              Fn::GetAtt:
+              - WorkflowLogs
+              - Arn
+  GcpAuthSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      GenerateSecretString:
+        SecretStringTemplate: '{}'
+        GenerateStringKey: shared_key
+        PasswordLength: 48
+        ExcludePunctuation: true
+  PartAAlertRule:
+    Type: AWS::Events::Rule
+    Condition: HasPartABus
+    Properties:
+      EventBusName:
+        Ref: PartAEventBusName
+      State: ENABLED
+      EventPattern:
+        detail-type:
+        - alert.created
+      Targets:
+      - Id: CReceiver
+        Arn:
+          Fn::GetAtt:
+          - Receiver
+          - Arn
+        DeadLetterConfig:
+          Arn:
+            Fn::GetAtt:
+            - Errors
+            - Arn
+        RetryPolicy:
+          MaximumEventAgeInSeconds: 3600
+          MaximumRetryAttempts: 5
+  PartAReceiverPermission:
+    Type: AWS::Lambda::Permission
+    Condition: HasPartABus
+    Properties:
+      FunctionName:
+        Ref: Receiver
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+        - PartAAlertRule
+        - Arn
+      SourceAccount:
+        Ref: AWS::AccountId
+Outputs:
+  ApiBase:
+    Value:
+      Fn::Sub: https://${Api}.execute-api.${AWS::Region}.amazonaws.com
+  SF1Arn:
+    Value:
+      Ref: SF1
+  SF3Arn:
+    Value:
+      Ref: SF3
+  CoordinationTable:
+    Value:
+      Ref: Coordination
+  ErrorsQueue:
+    Value:
+      Ref: Errors
+  TopicArn:
+    Value:
+      Ref: Topic
+  JwtSecretArn:
+    Value:
+      Ref: JwtSecret
+  CloudflareSecretArn:
+    Value:
+      Ref: CloudflareSecret
+  B2SecretArn:
+    Value:
+      Ref: B2Secret
+  BackupWorkflowArn:
+    Value:
+      Ref: BackupWorkflow
+  IngestQueueUrl:
+    Value:
+      Ref: IngestQueue
+  EventBusName:
+    Value:
+      Ref: PilotBus
+  DataBucketName:
+    Value:
+      Ref: DataBucket
+  GcpAuthSecretArn:
+    Value:
+      Ref: GcpAuthSecret
+  PartAIngestUrl:
+    Value:
+      Ref: PartAIngestUrl
+Conditions:
+  HasPartABus:
+    Fn::Not:
+    - Fn::Equals:
+      - Ref: PartAEventBusName
+      - ''

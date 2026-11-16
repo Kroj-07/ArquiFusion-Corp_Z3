@@ -7,9 +7,9 @@
       "Type": "Parallel",
       "Branches": [
         {
-          "StartAt": "NotifyRole",
+          "StartAt": "NotifyRole_operator",
           "States": {
-            "NotifyRole": {
+            "NotifyRole_operator": {
               "Type": "Task",
               "Resource": "arn:aws:states:::lambda:invoke",
               "Parameters": {
@@ -39,9 +39,9 @@
           }
         },
         {
-          "StartAt": "NotifyRole",
+          "StartAt": "NotifyRole_technician",
           "States": {
-            "NotifyRole": {
+            "NotifyRole_technician": {
               "Type": "Task",
               "Resource": "arn:aws:states:::lambda:invoke",
               "Parameters": {
@@ -71,9 +71,9 @@
           }
         },
         {
-          "StartAt": "NotifyRole",
+          "StartAt": "NotifyRole_maintenance",
           "States": {
-            "NotifyRole": {
+            "NotifyRole_maintenance": {
               "Type": "Task",
               "Resource": "arn:aws:states:::lambda:invoke",
               "Parameters": {
@@ -103,9 +103,9 @@
           }
         },
         {
-          "StartAt": "NotifyRole",
+          "StartAt": "NotifyRole_supervisor",
           "States": {
-            "NotifyRole": {
+            "NotifyRole_supervisor": {
               "Type": "Task",
               "Resource": "arn:aws:states:::lambda:invoke",
               "Parameters": {
@@ -135,9 +135,9 @@
           }
         },
         {
-          "StartAt": "NotifyRole",
+          "StartAt": "NotifyRole_admin",
           "States": {
-            "NotifyRole": {
+            "NotifyRole_admin": {
               "Type": "Task",
               "Resource": "arn:aws:states:::lambda:invoke",
               "Parameters": {
@@ -167,9 +167,9 @@
           }
         },
         {
-          "StartAt": "NotifyRole",
+          "StartAt": "NotifyRole_manager",
           "States": {
-            "NotifyRole": {
+            "NotifyRole_manager": {
               "Type": "Task",
               "Resource": "arn:aws:states:::lambda:invoke",
               "Parameters": {

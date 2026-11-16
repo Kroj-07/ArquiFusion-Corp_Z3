@@ -1,0 +1,7 @@
+{
+  "name": "arquifusion-ai-z3",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-11-15",
+  "ai": {"binding": "AI"},
+  "observability": {"enabled": false}
+}

@@ -14,7 +14,9 @@ def task(action,payload,next_state=None,result=None,end=False):
     return state
 
 
-def branch(action):return {'StartAt':'Run','States':{'Run':task(action,{'alert.$':'$.alert'},end=True)}}
+def branch(action):
+    name='Prepare_'+action
+    return {'StartAt':name,'States':{name:task(action,{'alert.$':'$.alert'},end=True)}}
 
 
 def build():
@@ -53,7 +55,9 @@ def build():
     workflow={'Comment':'C · Standard. Callback tokens privados; cierre e inventario en una sola transacción.','StartAt':'RecordAlert','TimeoutSeconds':172800,'States':states}
     roles=['operator','technician','maintenance','supervisor','admin','manager']
     branches=[]
-    for role in roles:branches.append({'StartAt':'NotifyRole','States':{'NotifyRole':task('notify',{'alert.$':'$.alert','role':role},end=True)}})
+    for role in roles:
+        name='NotifyRole_'+role
+        branches.append({'StartAt':name,'States':{name:task('notify',{'alert.$':'$.alert','role':role},end=True)}})
     fanout={'Comment':'C · Express. Inbox deduplicado por alert_id/rol/alcance. SNS puede entregar más de una vez.','StartAt':'FanOutByRole','TimeoutSeconds':240,'States':{
       'FanOutByRole':{'Type':'Parallel','Branches':branches,'ResultPath':None,'Catch':[{'ErrorEquals':['States.ALL'],'ResultPath':'$.failure','Next':'QueueFailure'}],'Next':'Delivered'},
       'QueueFailure':states['QueueFailure'],'Failed':{'Type':'Fail','Error':'NOTIFICATION_ACTION_REQUIRED'},'Delivered':{'Type':'Succeed'}}}

@@ -68,9 +68,9 @@
       "Type": "Parallel",
       "Branches": [
         {
-          "StartAt": "Run",
+          "StartAt": "Prepare_create",
           "States": {
-            "Run": {
+            "Prepare_create": {
               "Type": "Task",
               "Resource": "arn:aws:states:::lambda:invoke",
               "Parameters": {
@@ -99,9 +99,9 @@
           }
         },
         {
-          "StartAt": "Run",
+          "StartAt": "Prepare_context",
           "States": {
-            "Run": {
+            "Prepare_context": {
               "Type": "Task",
               "Resource": "arn:aws:states:::lambda:invoke",
               "Parameters": {
@@ -130,9 +130,9 @@
           }
         },
         {
-          "StartAt": "Run",
+          "StartAt": "Prepare_explain",
           "States": {
-            "Run": {
+            "Prepare_explain": {
               "Type": "Task",
               "Resource": "arn:aws:states:::lambda:invoke",
               "Parameters": {
