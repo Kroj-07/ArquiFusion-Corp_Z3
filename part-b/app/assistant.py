@@ -57,6 +57,6 @@ class GeminiAssistant:
             raise RuntimeError("GOOGLE_CLOUD_PROJECT must be configured")
         return cls(
             project,
-            os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1"),
+            os.environ.get("GOOGLE_CLOUD_LOCATION", "global"),
             os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
         )
