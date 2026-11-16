@@ -1,0 +1,14 @@
+{
+  "incident_id": "INC-000045",
+  "machine_id": "MCH-000123",
+  "opened_at": "2026-11-14T15:10:00Z",
+  "closed_at": null,
+  "status": "open",
+  "severity": "high",
+  "downtime_minutes": 0,
+  "technician_id": "TEC-0007",
+  "actions": [],
+  "parts_replaced": [],
+  "recurrence_of": null,
+  "alert_ids": ["ALT-000812"]
+}

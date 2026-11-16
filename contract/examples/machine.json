@@ -1,0 +1,11 @@
+{
+  "machine_id": "MCH-000123",
+  "model": "CAT-320",
+  "type": "excavator",
+  "sector": "mining",
+  "zone_id": "ZONA-NORTE-02",
+  "status": "operating",
+  "last_seen": "2026-11-14T15:04:05Z",
+  "operating_hours_total": 3240.7,
+  "last_maintenance_at": "2026-10-15T08:00:00Z"
+}
