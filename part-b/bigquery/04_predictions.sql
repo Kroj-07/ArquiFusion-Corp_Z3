@@ -83,7 +83,7 @@ USING (
       WHEN score >= 75 THEN "inspect_within_24h"
       ELSE "inspect_within_72h"
     END AS recommended_action,
-    ARRAY<STRUCT<metric STRING, observed FLOAT64, expected FLOAT64, window STRING, trend STRING>>[
+    ARRAY<STRUCT<metric STRING, observed FLOAT64, expected FLOAT64, `window` STRING, trend STRING>>[
       STRUCT(
         "engine_temp_c",
         engine_temp_c,
