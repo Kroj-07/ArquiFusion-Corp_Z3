@@ -2,7 +2,7 @@
 """
 restore_from_azure.py — Restaura Parquet desde Azure Blob a S3 (inverso de af-backup-azure).
 
-Autor: IA-4 | Rama: ia4-puente | Carpeta: /part-a/backup
+Parte A (Kiara) | Carpeta: /part-a/backup
 
 Lee los blobs bajo BLOB_PREFIX (por defecto "af-backup/"), quita ese prefijo y los
 sube a S3 con la misma clave. Salta los que ya existen con el mismo tamaño

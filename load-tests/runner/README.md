@@ -1,4 +1,4 @@
-# Runner de carga y caos (IA-5)
+# Runner de carga y caos
 
 Solo biblioteca estándar (el caos usa `boto3` al ejecutarse de verdad).
 

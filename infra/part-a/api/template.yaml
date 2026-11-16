@@ -4,7 +4,7 @@ Description: >
   ArquiFusion - Parte A - API REST /v1 (API Gateway + Lambdas + autorizador).
   Lectura: /machines, /machines/{id}, /machines/{id}/telemetry, /machines/{id}/incidents, /alerts,
   /technicians, /incidents, /inventory, /notifications. Escritura: POST /alerts (HMAC) y callbacks
-  POST /incidents/{id}/ack|start|close (reanudan SF-1). POST /telemetry NO es de este stack (IA-2).
+  POST /incidents/{id}/ack|start|close (reanudan SF-1). POST /telemetry NO es de este stack (es de ingesta).
   Todo corre con LabRole (Learner Lab), solo us-east-1 y us-west-2, sin servidores permanentes.
 
 # -----------------------------------------------------------------------------

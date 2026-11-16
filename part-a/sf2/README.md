@@ -1,4 +1,4 @@
-# SF-2 — Pipeline analítico (IA-5)
+# SF-2 — Pipeline analítico
 
 Step Functions STANDARD `af-{env}-sf2-pipeline`: `ApplyDefaults → SyncToBigQuery → ListZones → ProcessZones (Map) → BackupToAzure → Summarize`.
 Dentro del Map, por zona: `TrainZoneModel → EvaluateModel → PromoteOrKeep (Choice) → PromoteModel | KeepCurrentModel`.
@@ -30,12 +30,12 @@ aws stepfunctions start-execution --state-machine-arn <arn> --input '{"force_fai
 ```
 
 ## Nombres de las tablas (para la versión real del sync)
-`infra/data/template.yaml` (IA-2) las publica en SSM como `/arquifusion/{env}/data/{machines,telemetry,alerts,incidents,technicians,inventory}-table`. La versión real de `sync_bigquery` debe leerlas de ahí. Ojo: el contrato §8 dice `/arquifusion/{env}/ddb/`; ver nota de discrepancia abajo.
+`infra/part-a/data/template.yaml` las publica en SSM como `/arquifusion/{env}/data/{machines,telemetry,alerts,incidents,technicians,inventory}-table`. La versión real de `sync_bigquery` debe leerlas de ahí. Ojo: el contrato §8 dice `/arquifusion/{env}/ddb/`; ver nota de discrepancia abajo.
 
 ## Pendiente
-- Discrepancia contrato vs. IA-2 (no es mi carpeta, solo aviso): SSM `/data/` en vez de `/ddb/`, y bucket `af-{env}-data-{cuenta}` en vez de `af-{env}-arquifusion-data`. Alguien debe corregir el template o proponer el cambio de contrato.
-- `BackupToAzure` (contrato §11, A10) es mock y no tumba el pipeline si falla: reutilizar `part-a/backup/azure_backup` de IA-4 (secreto `arquifusion/{env}/azure-sas`).
+- Discrepancia entre el contrato y la plantilla de datos: SSM `/data/` en vez de `/ddb/`, y bucket `af-{env}-data-{cuenta}` en vez de `af-{env}-arquifusion-data`. Hay que corregir la plantilla o actualizar el contrato.
+- `BackupToAzure` (contrato §11, A10) es mock y no tumba el pipeline si falla: reutilizar `part-a/backup/azure_backup` (secreto `arquifusion/{env}/azure-sas`).
 - Tablas BigQuery `fleet`: el sync cubre telemetry, machines, technicians e incidents; `model_runs` (una fila por zona y corrida) falta en la versión real.
 - Sustituir los mocks: `sync_bigquery` (DynamoDB → BigQuery, credencial de Google en Secrets Manager) y `train_zone`/`promote_model`.
 
-- No se ejecutaron `cfn-lint` ni `sam validate` (el entorno donde se escribió no los tiene): correrlos antes del PR.
+- Correr `cfn-lint` / `sam validate` antes de desplegar cambios a esta plantilla.

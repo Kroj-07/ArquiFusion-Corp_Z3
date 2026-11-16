@@ -9,7 +9,7 @@ SF-1 (Parte C) guarda en el item del incidente los tokens de callback ``ack_task
 ``close_task_token`` y queda esperando. Aqui se valida, se reanuda el flujo con
 ``SendTaskSuccess`` y se actualiza el item. Los tokens NUNCA se devuelven al cliente.
 
-Convenciones propuestas al contrato (por confirmar con C / IA-2):
+Convenciones propuestas al contrato (por confirmar entre A y C):
   - Incidents necesita un GSI ``incident_id-index`` (PK incident_id) para buscar por id.
   - Atributos nuevos del incidente: ack_task_token, close_task_token, acknowledged_at,
     acknowledged_by, started_at, close_requested_at, closed_by.

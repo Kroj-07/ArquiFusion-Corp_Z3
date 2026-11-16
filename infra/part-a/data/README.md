@@ -1,4 +1,4 @@
-# infra/data — Persistencia (IA-2)
+# infra/data — Persistencia
 
 `template.yaml` (CloudFormation) crea las 6 tablas DynamoDB y el bucket S3 del contrato
 (sección 8), y publica sus nombres en SSM bajo `/arquifusion/{env}/data/`.

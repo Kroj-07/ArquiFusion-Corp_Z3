@@ -1,4 +1,4 @@
-# part-a/ingest — Ingesta de telemetría (IA-2)
+# part-a/ingest — Ingesta de telemetría
 
 Lambda `app.py` (Python 3.12), disparada por SQS. Cada mensaje trae una lectura o un
 lote (`{"readings": [...]}`) con el formato de la sección 2 del contrato.
@@ -66,11 +66,8 @@ mensaje SQS.
 
 ## Pendiente
 
-- **Falta la plantilla de despliegue de la Lambda** (función, cola SQS, DLQ, mapeo de eventos).
-  No la creé porque la tarea pedía solo el código; irá en `part-a/ingest/template.yaml` y la
-  anida `infra/root`. Quién crea la cola y cómo se publica su nombre en SSM está por acordar
-  (¿IA-3, con `POST /v1/telemetry`, encola aquí?).
-- **Nada se ha desplegado ni probado contra AWS real.** Solo hay pruebas con mocks.
+- **Plantilla de despliegue:** está en `infra/part-a/ingest/template.yaml` (API HTTP → SQS + DLQ → Lambda).
+- **Pruebas:** las del repo usan mocks. La ruta real (API → cola → Lambda → DynamoDB) se probó con las lecturas de prueba del piloto.
 - **boto3 del runtime:** `If-None-Match` en `put_object` exige boto3 >= 1.35.90. Si el runtime de
   Lambda trae uno anterior, hay que empaquetar boto3 o quitar la condición (queda la idempotencia
   de DynamoDB, que es la que manda).
@@ -79,7 +76,7 @@ mensaje SQS.
   segundo; las métricas, salvo `engine_temp_c`, no pueden ser negativas; máximo 500 lecturas por
   mensaje.
 - **Tabla Machines:** guardo `last_seen`, `last_metrics`, `updated_at` además de los campos del
-  catálogo. IA-3 (API) debe conocerlos. Una máquina que no esté en el catálogo se crea con solo
+  catálogo. La API los tiene que conocer. Una máquina que no esté en el catálogo se crea con solo
   esos campos (sin `model` ni `type`).
 - **Sin filtro de antigüedad:** se acepta cualquier `timestamp`, incluso futuro o muy viejo; una
   lectura de hace más de 30 días se guarda con un `ttl` ya vencido.

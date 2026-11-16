@@ -153,7 +153,7 @@ def promote_model(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
 
 def backup_to_azure(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
     """MOCK: la version real copia a azure://af-backup/... usando el secreto arquifusion/{env}/azure-sas
-    (IA-4 ya tiene part-a/backup/azure_backup: reutilizarlo en vez de duplicar)."""
+    (ya existe part-a/backup/azure_backup: reutilizarlo en vez de duplicar)."""
     return {"copied": True, "target": "azure://af-backup/sf2/%s/" % event.get("run_id", "local"), "mock": _mock()}
 
 

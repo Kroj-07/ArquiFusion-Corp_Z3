@@ -1,40 +1,41 @@
-# STATUS — ArquiFusion Fleet Intelligence (Parte A)
+# Estado del proyecto
 
-Última actualización: 2026-11-15 (integración A+B+C)
+Última actualización: 15 de noviembre de 2026.
 
-| Frente | Hecho | En curso | Bloqueado por |
-|---|---|---|---|
-| Fundación (raíz, seguridad, scripts, CI) | Raíz anida los 8 stacks; secretos y SSM; `deploy.sh`, `destroy.sh`, `set_secrets.sh`, `smoke_test.sh`, `check_templates.py`, CI | — | Despliegue real en el Lab |
-| Ingesta | Código con pruebas; plantilla API HTTP → SQS+DLQ → Lambda | — | Confirmar integración directa API Gateway → SQS con LabRole |
-| Datos | 6 tablas, S3, Global Tables, stream de Telemetry, índice `incident_id-index` | — | — |
-| API | Endpoints, autorizador (REST y HTTP), alertas HMAC, callbacks; 77 pruebas | — | Aceptación de B (HMAC) y C (JWT) |
-| Puente y respaldo | Código y plantilla; fuente = stream de Telemetry | — | Clave GCP, SAS de Azure, proyecto de B |
-| SF-2 | Máquina de estados con mocks | Versión real de `sync_bigquery` | Tablas BigQuery de B |
+## Qué está desplegado y funcionando
 
-## Decisiones y cambios de contrato
-- Contrato v1.3: HMAC sobre `timestamp.cuerpo`, secreto `arquifusion/{env}/alert-hmac`; JWT HS256 en vez de Cognito.
-- SSM de tablas bajo `/data/` (no `/ddb/`); entornos `test` y `shared`; ingesta con su propio API HTTP (JWT `admin`).
-- El puente lee el stream de Telemetry (datos ya validados), no la cola cruda.
+- **AWS** (cuenta Learner Lab de Kiara): ingesta por API → SQS → Lambda → DynamoDB, API `/v1` con JWT por rol, alertas firmadas con HMAC, y los workflows SF-1 (incidentes) y SF-3 (notificaciones por rol).
+- **Google Cloud** (Nico): datos en BigQuery, modelos en BigQuery ML, API en Cloud Run y Gemini para las explicaciones.
+- **Cloudflare** (Guillermo): la web en Pages y un Worker con Workers AI para explicaciones de incidentes. El login pasa por un Worker que reenvía a AWS.
 
-## Pendientes de confirmar
-- Que la cuenta sea Learner Lab (SES, Step Functions, Global Tables, EventBridge Scheduler, `events.amazonaws.com` en LabRole).
-- Que B acepte el cambio del secreto HMAC; que C acepte el autorizador JWT.
-- `sam validate --lint` y un despliegue real: nada se ha probado contra AWS.
+La web se prueba siguiendo [PRUEBAS_TA.md](PRUEBAS_TA.md). Con eso se repite el ciclo completo: lectura de prueba, incidente, asignación, atención y cierre. La alerta enviada desde GCP a AWS quedó registrada como `ALT-B-TEST-002` (máquina `MCH-999001`, incidente `INC-6EC005997EF2`).
 
-## Integración A+B+C (2026-11-15) — conflictos hallados y resueltos
-| # | Conflicto | Resolución |
-|---|---|---|
-| 1 | B firmaba alertas con `HMAC(cuerpo)`; A exige `HMAC("timestamp.cuerpo")` → 401 en todo `POST /v1/alerts` | `part-b/app/security.py` + pruebas de B y `tests/integration/test_ab_alert_signature.py` |
-| 2 | B construía `.../v1/v1/alerts` (el SSM `api/base-url` ya termina en `/v1`) | `part-b/app/main.py` tolera con o sin `/v1` |
-| 3 | El puente publicaba JSON anidado; `fleet.telemetry` es plana → Pub/Sub→BigQuery rechazaba todo | `part-a/bridge/pubsub_bridge/flatten.py` |
-| 4 | Terraform de B no creaba tópico ni suscripción | `part-b/deploy/terraform/main.tf` (suscripción tras crear tablas: `create_telemetry_subscription`) |
-| 5 | SF-2 promovía por MAE; B guarda precision/recall en `model_runs` | `part-a/sf2/functions/pipeline.py` (F1 + tope de caída de recall) |
-| 6 | Tras mover infra a `infra/part-a/`: rutas rotas (`CodeUri`, `check_templates.py`, `deploy.sh`), `events-template.yaml` viejo, `Role` en Globals | rutas corregidas; `cfn-lint` 0 errores |
-| 7 | README de A guardado como `README (2).md`; README raíz era el de C | README raíz mínimo; el de C en `part-c/README.md` |
-| 8 | Problema 12 (patrones previos a la falla) sin cobertura | `part-b/bigquery/05_precursors.sql` |
+## Cambios al contrato que acordamos
 
-## Sigue pendiente
-- Copiar el secreto `arquifusion/{env}/alert-hmac` (lo genera AWS) a Secret Manager de GCP (`arquifusion-alert-hmac`); B lo lee como `B_ALERT_HMAC_SECRET`.
-- Sin implementar (B): endpoint de `failure_precursors`, deriva de combustible con CUSUM, alertas desde ARIMA_PLUS; en SF-2 falta el paso "generar alertas por zona" del plan v3.
-- Costos: medir con la corrida real (`load-tests/runner`) y confirmar API Gateway/X-Ray en las calculadoras.
-- Nada de esto se probó contra AWS/GCP reales (no hay `sam`, `terraform` ni credenciales en este entorno).
+- La firma de alertas es HMAC sobre `timestamp.cuerpo`, con el secreto `arquifusion/{env}/alert-hmac`.
+- Usamos JWT HS256 en vez de Cognito. Al final el login es usuario y contraseña contra la API de AWS.
+- Los nombres de tablas en SSM quedaron bajo `/data/` (el contrato decía `/ddb/`).
+- El puente a Pub/Sub lee el stream de Telemetry (datos ya validados), no la cola cruda.
+- La firma C→B es aparte de la de alertas B→A (ver [contract/CONEXION_KIARA_NICO.md](contract/CONEXION_KIARA_NICO.md)).
+
+## Problemas que arreglamos al juntar las tres partes
+
+- B firmaba solo el cuerpo y A esperaba `timestamp.cuerpo`, así que todas las alertas daban 401. Se corrigió en `part-b/app/security.py` y se agregó `tests/integration/test_ab_alert_signature.py`.
+- B armaba la URL como `.../v1/v1/alerts`. Ahora tolera la base con o sin `/v1`.
+- El puente mandaba JSON anidado y la tabla de BigQuery es plana; se agregó `part-a/bridge/pubsub_bridge/flatten.py`.
+- Faltaban el tópico y la suscripción de Pub/Sub en el Terraform de B.
+- SF-2 promovía modelos por MAE, pero B guarda precision y recall; ahora usa F1.
+- Cubrimos el problema 12 (patrones previos a la falla) con `part-b/bigquery/05_precursors.sql`.
+
+## Lo que no pudimos verificar
+
+- Restauración de respaldos, alta disponibilidad entre regiones y la prueba de 5.000 máquinas.
+- El pipeline de entrenamiento automático completo. Que el endpoint de predicción responda no demuestra precisión del modelo.
+- Azure y Backblaze no participan en esta versión. Hay código de respaldo a Azure en `part-a/backup` y `part-c/frontend/DEPLOY_AZURE.md`, de un plan anterior.
+
+## Pendiente (no alcanzamos a hacerlo)
+
+- Endpoint de `failure_precursors` en la API de B, deriva de combustible con CUSUM y alertas desde ARIMA_PLUS.
+- El paso "generar alertas por zona" en SF-2.
+- Medir los costos con una corrida real (`load-tests/runner`) y confirmar API Gateway y X-Ray en las calculadoras.
+- Copiar el secreto `alert-hmac` de AWS a Secret Manager de GCP cuando se despliegue en otra cuenta.

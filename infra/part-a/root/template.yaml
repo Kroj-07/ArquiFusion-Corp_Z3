@@ -3,12 +3,12 @@ Transform: AWS::Serverless-2016-10-31
 Description: >-
   ArquiFusion Fleet Intelligence - Parte A - stack raíz (anida todos los stacks de la Parte A).
   Publica la configuración común en SSM (/arquifusion/{env}/root/) y, cuando cada
-  IA entregue su plantilla, anida sus stacks. Cuenta tratada como Learner Lab:
+  módulo tenga su plantilla, se anida su stack. Cuenta tratada como Learner Lab:
   todos los recursos usan LabRole, solo us-east-1 y us-west-2.
 
 Metadata:
   Proyecto: ArquiFusion Fleet Intelligence
-  Responsable: IA-1 (Fundación)
+  Responsable: Kiara (fundación)
 
 Parameters:
   Env:
@@ -72,7 +72,7 @@ Rules:
         AssertDescription: Solo se permite us-east-1 y us-west-2 (Learner Lab).
 
 Resources:
-  # --- Configuración común, leída por las demás IAs desde SSM -----------------
+  # --- Configuración común, leída por los demás stacks desde SSM -----------------
   EnvParameter:
     Type: AWS::SSM::Parameter
     Properties:

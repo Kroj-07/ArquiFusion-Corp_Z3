@@ -1,5 +1,5 @@
 -- Problema 12 (planificación con histórico): qué pasó en las 72 h anteriores a cada falla.
--- Versión mínima del plan v3: resume las métricas previas y su pendiente (últimas 24 h vs. 48-72 h antes).
+-- Versión mínima del plan inicial: resume las métricas previas y su pendiente (últimas 24 h vs. 48-72 h antes).
 -- Requiere 01_schema.sql (fleet.telemetry, fleet.failure_events). Es una vista: no cuesta nada en reposo.
 
 CREATE OR REPLACE VIEW fleet.failure_precursors AS

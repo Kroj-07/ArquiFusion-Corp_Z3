@@ -1,9 +1,9 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  ArquiFusion Fleet Intelligence - Parte A - Observabilidad (IA-5).
+  ArquiFusion Fleet Intelligence - Parte A - Observabilidad.
   Alarmas CloudWatch (errores de ingesta, latencia p95, cola SQS, DLQ, SF-2), dashboard,
-  topico SNS y configuracion de X-Ray. Los nombres de recursos de otras IAs se leen de SSM.
+  topico SNS y configuracion de X-Ray. Los nombres de recursos de los otros stacks se leen de SSM.
 
 Parameters:
   Env:
@@ -29,7 +29,7 @@ Parameters:
 Conditions:
   HasEmail: !Not [!Equals [!Ref AlarmEmail, '']]
 
-# Nombres leidos de SSM (supuesto: confirmar con IA-2 / contrato):
+# Nombres leidos de SSM (supuesto: confirmar contra el contrato):
 #   /arquifusion/{env}/ingest/function-name   Lambda de ingesta
 #   /arquifusion/{env}/ingest/queue-name      cola SQS principal
 #   /arquifusion/{env}/ingest/dlq-name        cola de mensajes muertos

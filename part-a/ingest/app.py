@@ -1,4 +1,4 @@
-"""Lambda de ingesta de telemetría (IA-2). Python 3.12.
+"""Lambda de ingesta de telemetría. Python 3.12.
 
 Disparada por SQS. Cada mensaje trae una lectura o un lote ({"readings": [...]}).
 Por cada lectura:

@@ -1,7 +1,7 @@
 """
 af-bridge-pubsub — Puente AWS -> Google Cloud Pub/Sub (topic `telemetry-raw`).
 
-Autor: IA-4 | Rama: ia4-puente | Carpeta: /part-a/bridge
+Parte A (Kiara) | Carpeta: /part-a/bridge
 
 Fuentes soportadas (se detecta por `eventSource` de cada record):
   - aws:sqs        -> el body del mensaje se publica tal cual (JSON).

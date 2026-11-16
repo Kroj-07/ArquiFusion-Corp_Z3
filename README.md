@@ -31,7 +31,6 @@ Contraseña: ArquiFusion2026!
 
 **URL de la web:** `<pegar aquí la URL de Cloudflare Pages>`
 
-Notas rápidas:
 - El rol no se elige desde el navegador: el servidor (AWS) verifica la contraseña y decide el rol.
 - Es una cuenta de evaluación, no un sistema de registro de usuarios.
 - Los pasos para repetir el ciclo completo están en [PRUEBAS_TA.md](PRUEBAS_TA.md) (resumidos abajo).
@@ -67,12 +66,12 @@ Máquina / simulador
 [Cloudflare] Pages + Workers  ←  lo que ven los usuarios (mapa, incidentes, analítica)
 ```
 
-Cosas de seguridad que sí implementamos:
+Seguridad:
 - Las alertas de GCP hacia AWS van firmadas con HMAC-SHA256 (timestamp + cuerpo, ventana de 5 minutos) y son idempotentes por `alert_id`.
 - La API de AWS usa JWT con roles. El navegador nunca recibe la clave compartida.
 - Ningún secreto está en el repo: viven en Secrets Manager / SSM (AWS) y Secret Manager (GCP).
 
-El contrato técnico entre las tres partes (formatos de mensajes, endpoints, firma) está en [contract/README.md](contract/README.md).
+El acuerdo técnico entre las tres partes (formatos de mensajes, endpoints, firma) está en [contract/README.md](contract/README.md).
 
 ---
 
@@ -80,37 +79,38 @@ El contrato técnico entre las tres partes (formatos de mensajes, endpoints, fir
 
 ```text
 .
-├── part-a/            Parte A (AWS): ingesta, API /v1, autorizador, alertas, puente a Pub/Sub,
-│   ├── ingest/          respaldo, SF-2 (pipeline analítico), observabilidad y costos
-│   ├── api/
-│   ├── bridge/
-│   ├── sf2/
-│   ├── observability/
-│   ├── security/
-│   └── shared/        utilidades compartidas (HMAC)
+├── part-a/            Parte A (AWS)
+│   ├── ingest/          ingesta de telemetría
+│   ├── api/             API /v1, autorizador, alertas, callbacks
+│   ├── bridge/          puente a Pub/Sub
+│   ├── backup/          respaldo (código de un plan anterior, ver más abajo)
+│   ├── sf2/             pipeline analítico
+│   ├── observability/   métricas, alarmas y modelo de costos
+│   ├── security/        notas de seguridad
+│   └── shared/          utilidades compartidas (HMAC)
 ├── part-b/            Parte B (Google Cloud)
-│   ├── generator/       generador de telemetría/fallas sintéticas
-│   ├── bigquery/        SQL en orden: 01 esquema → 05 precursores (incluye modelos ML)
+│   ├── generator/       generador de telemetría y fallas sintéticas
+│   ├── bigquery/        SQL en orden: 01 esquema → 05 precursores (incluye los modelos ML)
 │   ├── app/             API en Cloud Run (FastAPI) + asistente Gemini
 │   ├── deploy/terraform/
 │   └── data/sample/     datos de ejemplo
-├── part-c/            Parte C (app)
+├── part-c/            Parte C
 │   ├── frontend/        React + Vite (mapa, incidentes, asignación, analítica)
 │   └── backend/afc/     lógica de dominio, asignación de técnicos, demo local
 ├── infra/             Infraestructura como código
 │   ├── part-a/          plantillas SAM/CloudFormation de A
-│   ├── part-c/          SF-1 (incidentes), SF-3 (notificaciones por rol), plantillas de C
-│   ├── pilot/           stack de despliegue del piloto (AWS + Cloudflare)
-│   └── cloudflare/      Workers y Pages (login proxy, Workers AI)
-├── contract/          Contrato técnico entre A, B y C + ejemplos JSON
-├── load-tests/        Pruebas de carga (100 / 1.000 / 5.000 máquinas) y caos (SQS)
-├── tests/integration/ Pruebas de integración A ↔ B (firma de alertas)
-├── scripts/           Despliegue, pruebas, smoke test, validación de plantillas
-├── PRUEBAS_TA.md      Guía paso a paso para probar la web
-└── STATUS.md          Estado de la integración y pendientes
+│   ├── part-c/          SF-1 (incidentes), SF-3 (notificaciones por rol)
+│   ├── pilot/           despliegue del piloto (AWS + Cloudflare)
+│   └── cloudflare/      Workers y Pages
+├── contract/          acuerdo técnico entre A, B y C + ejemplos JSON
+├── load-tests/        pruebas de carga (100 / 1.000 / 5.000 máquinas) y caos (SQS)
+├── tests/integration/ pruebas de integración A ↔ B (firma de alertas)
+├── scripts/           despliegue, pruebas, smoke test, validación de plantillas
+├── PRUEBAS_TA.md      guía paso a paso para probar la web
+└── STATUS.md          estado y pendientes
 ```
 
-Si solo tienen poco tiempo, miren en este orden: **la web** → `PRUEBAS_TA.md` → `infra/part-c/sf1-incident.asl.json` → `part-b/bigquery/` → `part-a/api/`.
+Si tienen poco tiempo, miren en este orden: la web → `PRUEBAS_TA.md` → `infra/part-c/sf1-incident.asl.json` → `part-b/bigquery/` → `part-a/api/`.
 
 ---
 
@@ -121,7 +121,7 @@ Detalle completo en [PRUEBAS_TA.md](PRUEBAS_TA.md).
 1. Entrar con el usuario `ta`.
 2. En el centro de control, pulsar **Lectura de prueba**, elegir una máquina sin incidente activo y enviar **temperatura y vibración altas**. Esto publica una medición nueva en la cola de AWS (usa un detector por reglas, está identificado como tal).
 3. Esperar unos segundos y revisar **Incidentes**. Si no se asignó técnico solo, ir a **Asignación de técnicos**, calcular y confirmar.
-4. Abrir el incidente: evidencia + explicación generada por IA.
+4. Abrir el incidente: evidencia y explicación generada por IA.
 5. **Confirmar recepción** → **Iniciar atención**.
 6. En **Intervención y cierre**, registrar una intervención y **Cerrar intervención**. El incidente pasa a *Resuelto* y el técnico queda libre.
 7. En **Analítica operativa** se ven los módulos que consultan Cloud Run (BigQuery/Gemini). Si algo falla se muestra como "no disponible"; no inventamos resultados.
@@ -155,7 +155,7 @@ Si eligen **lectura normal**, no debería abrirse ningún incidente.
 
 Requisitos: Python 3.12 y Node.js 20.19 o superior.
 
-**Pruebas de todo el repo** (no necesitan credenciales cloud):
+Pruebas de todo el repo (no necesitan credenciales cloud):
 
 ```bash
 pip install pyyaml boto3 pyarrow
@@ -163,7 +163,7 @@ pip install -r part-b/requirements-dev.txt
 scripts/run_tests.sh
 ```
 
-**Demo local de la app** (Windows, PowerShell, desde la raíz):
+Demo local de la app (Windows, PowerShell, desde la raíz):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\Iniciar_Demo.ps1
@@ -171,7 +171,7 @@ powershell -ExecutionPolicy Bypass -File .\Iniciar_Demo.ps1
 
 Abre `http://127.0.0.1:5173` con un backend local y datos simulados. Detalles en [part-c/README.md](part-c/README.md).
 
-**Generar datos sintéticos de la Parte B:**
+Datos sintéticos de la Parte B:
 
 ```powershell
 py -3.12 -m venv .venv
@@ -189,7 +189,7 @@ scripts/smoke_test.sh test us-east-1       # ingesta -> DynamoDB -> API, alerta 
 scripts/destroy.sh test us-east-1          # limpiar
 ```
 
-- **AWS (piloto + Cloudflare):** [infra/pilot/GUIA.md](infra/pilot/GUIA.md)
+- **AWS + Cloudflare (piloto):** [infra/pilot/GUIA.md](infra/pilot/GUIA.md)
 - **Google Cloud:** [part-b/README.md](part-b/README.md) (Terraform + SQL; el secreto HMAC de AWS se copia a Secret Manager de GCP)
 - **Cloudflare:** Workers en `infra/cloudflare/`. La web se publica con `python scripts/build_public_web.py` y se sube el ZIP de `delivery/` a Pages.
 
@@ -197,32 +197,14 @@ scripts/destroy.sh test us-east-1          # limpiar
 
 ## Qué quedó verificado y qué no
 
-Preferimos ser claros con esto:
+Lo que probamos: el ciclo completo desde la web (lectura → cola de AWS → incidente → asignación → atención → cierre), una alerta firmada de GCP a AWS (`ALT-B-TEST-002`, máquina `MCH-999001`, incidente `INC-6EC005997EF2`), los endpoints de predicción y Gemini en Cloud Run respondiendo HTTP 200, y las pruebas locales (`scripts/run_tests.sh`).
 
-**Sí funciona y lo probamos:**
-- Ciclo completo desde la web: lectura → cola de AWS → incidente → asignación → atención → cierre.
-- Alerta firmada de GCP a AWS (caso de prueba `ALT-B-TEST-002`, máquina `MCH-999001`, incidente `INC-6EC005997EF2`).
-- Endpoints de predicción de riesgo y Gemini en Cloud Run respondiendo HTTP 200.
-- Pruebas unitarias e de integración locales (`scripts/run_tests.sh`).
-
-**Límites que conocemos:**
+Lo que hay que tener en cuenta:
 - La flota, los catálogos y los históricos son **sintéticos**. No hay máquinas reales.
-- La ruta de "Lectura de prueba" usa un detector por reglas, no un modelo de GCP.
-- Que el endpoint de GCP responda no demuestra precisión del modelo ni un pipeline de entrenamiento automático completo.
-- **Azure no participa en esta versión.** Hay código de respaldo y despliegue para Azure en el repo (`part-a/backup`, `part-c/frontend/DEPLOY_AZURE.md`) de un plan anterior, pero no está en uso.
-- No hay verificación final de: restauración de respaldos, alta disponibilidad entre regiones, pruebas de 5.000 máquinas ni el pipeline completo de entrenamiento.
+- La "Lectura de prueba" usa un detector por reglas, no un modelo de GCP.
+- Que el endpoint de GCP responda no demuestra la precisión del modelo ni un pipeline de entrenamiento automático completo.
+- **Azure no participa en esta versión.** Quedó código de respaldo y despliegue para Azure (`part-a/backup`, `part-c/frontend/DEPLOY_AZURE.md`) de un plan anterior, pero no lo usamos.
+- No verificamos: restauración de respaldos, alta disponibilidad entre regiones, la prueba de 5.000 máquinas ni el pipeline completo de entrenamiento.
 - El adaptador de AWS lee catálogos con `Scan` acotado a 1000 filas. Sirve para el piloto, no demuestra escala a miles.
 
 Más detalle en [STATUS.md](STATUS.md).
-
----
-
-## Documentación por carpeta
-
-- [contract/README.md](contract/README.md): contrato técnico entre A, B y C
-- [part-a/api/README.md](part-a/api/README.md): API y autorizador
-- [part-a/observability/costs.md](part-a/observability/costs.md): modelo de costos
-- [part-b/README.md](part-b/README.md): BigQuery, ML, Cloud Run, Terraform
-- [part-c/README.md](part-c/README.md): app, asignación, SF-1 y SF-3
-- [load-tests/README.md](load-tests/README.md): carga y caos
-- [PRUEBAS_TA.md](PRUEBAS_TA.md): guía de evaluación

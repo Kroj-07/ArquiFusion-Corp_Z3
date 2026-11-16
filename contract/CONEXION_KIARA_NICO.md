@@ -1,10 +1,12 @@
-# Integración C · acuerdos concretos
+# Integración C · acuerdos entre las tres partes
 
-## Kiara / A
+Lo que la Parte C (Guillermo) necesita de la Parte A (Kiara) y de la Parte B (Nico), y lo que ofrece a cambio.
 
-C no asume nombres de tablas ni comparte una cuenta educativa distinta. La Lambda de C invoca por IAM un adaptador en **la misma cuenta y región** que los datos y las máquinas de estados. El adaptador mantiene las escrituras de negocio dentro del módulo A. Entregar a C su ARN.
+## Con Kiara (Parte A, AWS)
 
-Implementación de referencia lista para adaptar: `part-c/backend/afc/a_adapter.py`; despliegue: `infra/part-c/a-adapter-template.yaml`. Recibe nombres reales de tablas de A. Crea solo una tabla privada de comandos, no reemplaza datos de A. Las claves siguen el v3:
+C no asume nombres de tablas ni usa una cuenta distinta. La Lambda de C invoca por IAM un adaptador en **la misma cuenta y región** que los datos y las máquinas de estados. El adaptador mantiene las escrituras de negocio dentro del módulo A. Kiara nos pasa el ARN del adaptador.
+
+Implementación de referencia lista para adaptar: `part-c/backend/afc/a_adapter.py`; despliegue: `infra/part-c/a-adapter-template.yaml`. Recibe nombres reales de tablas de A. Crea solo una tabla privada de comandos, no reemplaza datos de A. Las claves son estas:
 
 | Entidad | PK | SK |
 |---|---|---|
@@ -15,7 +17,7 @@ Implementación de referencia lista para adaptar: `part-c/backend/afc/a_adapter.
 | Alerts | machine_id | created_at |
 | Telemetry | machine_id | timestamp |
 
-El lector de referencia usa Scan acotado en catálogos pequeños. Cambiar `catalog()` por las consultas o APIs indexadas de A antes de la prueba grande. La lectura de telemetría usa Query por máquina, máximo 1000 puntos. No se escanea toda la telemetría.
+El lector de referencia usa Scan acotado en catálogos pequeños. Hay que cambiar `catalog()` por consultas indexadas antes de la prueba grande. La lectura de telemetría usa Query por máquina, máximo 1000 puntos. No se escanea toda la telemetría.
 
 ### Operaciones del adaptador
 
@@ -39,11 +41,11 @@ Las filas anteriores sin `version` se interpretan como versión 1 en el adaptado
 
 `downtime_started_at` de Machine es opcional. Si no existe una marca real de parada y confirmación de reinicio, C conserva downtime_minutes=null. `resolution_minutes` mide otra cosa: apertura a cierre del incidente.
 
-Cuando A acepte una alerta, publicar en `arquifusion-events` un evento `detail-type=alert.created` cuyo `detail` sea el JSON de alerta v3. C crea o reutiliza el incidente, reserva al técnico y espera los callbacks. Los callbacks públicos son de la API C, autenticados por JWT; A no necesita manejar tokens de Step Functions.
+Cuando A acepte una alerta, publicar en `arquifusion-events` un evento `detail-type=alert.created` cuyo `detail` sea el JSON de alerta del contrato. C crea o reutiliza el incidente, reserva al técnico y espera los callbacks. Los callbacks públicos son de la API C, autenticados por JWT; A no necesita manejar tokens de Step Functions.
 
-## Nico / B
+## Con Nico (Parte B, Google Cloud)
 
-Entregar una base HTTPS, sin `/v1` al final. C consume:
+Nico nos da una base HTTPS, sin `/v1` al final. C consume:
 
 | Ruta | Respuesta `{data:...}` |
 |---|---|
@@ -53,15 +55,17 @@ Entregar una base HTTPS, sin `/v1` al final. C consume:
 | GET /v1/analytics/common-cause | `[{zone_id,machine_ids:[],hypothesis,confirmed:false}]` |
 | GET /v1/ai/explain?alert_id=...&role=... | `{role,text,model,grounded_on:[]}` |
 
-`sampled_operating_pct` es proporción de muestras, 0..100. Si Nico calcula utilización por tiempo, cambiar el campo y el rótulo de la vista para que represente esa definición. No inventar `confidence` ni confundir riesgo con probabilidad.
+`sampled_operating_pct` es proporción de muestras, 0..100. Si la utilización se calcula por tiempo, hay que cambiar el campo y el rótulo de la vista para que represente esa definición. No inventar `confidence` ni confundir riesgo con probabilidad.
 
 C filtra resultados por las máquinas autorizadas del usuario. B solo recibe llamadas de backend; el secreto no se incorpora al frontend.
 
-Para autenticar C→B se propone `x-signature-version=c-1`, `x-timestamp` UNIX y HMAC-SHA256 del texto `timestamp + '\nGET\n' + ruta_con_query + '\n'`. El secreto se guarda en AWS Secrets Manager (C) y GCP Secret Manager (B). Referencia de validación en `b_signature.py`. **Este acuerdo es para C→B y no modifica la firma de alertas B→A del plan.** Confirmarlo antes de activar el modo live; si usan otro mecanismo, cambiar solo BClient.
+Para autenticar C→B se propone `x-signature-version=c-1`, `x-timestamp` UNIX y HMAC-SHA256 del texto `timestamp + '\nGET\n' + ruta_con_query + '\n'`. El secreto se guarda en AWS Secrets Manager (C) y GCP Secret Manager (B). Referencia de validación en `b_signature.py`. **Este acuerdo es solo para C→B y no cambia la firma de alertas B→A.** Se confirma antes de activar el modo live; si usan otro mecanismo, cambiar solo BClient.
 
 Si B no responde, la UI muestra datos no disponibles. En el workflow, la evidencia de la alerta queda como texto determinístico claramente identificado; no se llama a eso una respuesta de Gemini.
 
 ## Autenticación y alcance
+
+> **Nota:** esta sección describe el diseño inicial con Cognito. En la versión que entregamos no usamos Cognito: el login es usuario y contraseña contra la API de AWS (`part-c/backend/afc/password_auth.py`), que devuelve un JWT, y pasa por el Worker de Cloudflare (`infra/cloudflare/pages-worker.mjs`). La lógica de roles y alcance por zona/máquina es la misma.
 
 API C valida en API Gateway el issuer y audience del cliente Cognito público. Esta implementación usa **ID token**, `token_use=id`, porque contiene los atributos de alcance. Si el equipo decide usar access tokens, Kiara debe añadir esos claims con el trigger adecuado y cambiar esta comprobación de forma coordinada.
 

@@ -16,7 +16,7 @@ Solo biblioteca estandar (urllib + threading). Ejemplos:
 
 CONTRATO v1.3 (seccion 2): cuerpo con schema_version, machine_id (MCH-000123), timestamp (UTC con Z),
 location{lat,lon,zone_id}, status y metrics; POST /v1/telemetry acepta una lectura o {"readings":[...]}.
-AUTENTICACION: el contrato no fija la de /v1/telemetry. Opcional y configurable (confirmar con IA-2):
+AUTENTICACION: el contrato no fija la de /v1/telemetry. Opcional y configurable (confirmar con Kiara):
   - AF_JWT: se envia como Authorization: Bearer <jwt> (se puede generar con part-a/api/mint_token.py).
   - AF_HMAC_SECRET: firma HMAC-SHA256 de "{x-timestamp}.{cuerpo}" en x-timestamp / x-signature
     (el esquema que el contrato define para POST /v1/alerts; el secreto real vive en Secrets Manager).

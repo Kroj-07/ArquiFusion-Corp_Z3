@@ -1,6 +1,6 @@
-# part-a/security — Seguridad (IA-1)
+# part-a/security — Seguridad
 
-Estado: **sin implementar todavía.** Aquí vivirá lo que la Parte A debe resolver de seguridad.
+Esta carpeta es solo documentación. El código de seguridad vive en `part-a/api/authorizer.py` (JWT por rol), `part-a/api/alerts.py` (HMAC de alertas) y `part-a/shared/hmac_utils.py`.
 
 ## Alcance previsto (contrato v1.2)
 

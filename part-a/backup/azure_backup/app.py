@@ -1,7 +1,7 @@
 """
 af-backup-azure — Respaldo a Azure Blob (A10). Lo invoca EventBridge Scheduler.
 
-Autor: IA-4 | Rama: ia4-puente | Carpeta: /part-a/backup
+Parte A (Kiara) | Carpeta: /part-a/backup
 
 Qué hace: lista los .parquet de S3 modificados en las últimas LOOKBACK_HOURS
 (36 por defecto, o `lookback_hours` en el evento) y copia a Azure Blob los que
@@ -12,7 +12,7 @@ Sube por bloques de 8 MB leyendo S3 en streaming; no necesita SDK de Azure
 Configuración (regla 4):
   Variables de entorno: ENV, SSM_PREFIX (opc.), LOOKBACK_HOURS (opc.), BLOB_PREFIX (opc.)
   Parámetros SSM (SUPUESTO: confirmar contra /contract):
-    {SSM_PREFIX}/data/telemetry-bucket        -> bucket S3 con los Parquet de la IA-2
+    {SSM_PREFIX}/data/telemetry-bucket        -> bucket S3 con los Parquet de la ingesta
     {SSM_PREFIX}/backup/source-prefix       -> prefijo S3 a respaldar (opcional, "" por defecto)
     {SSM_PREFIX}/backup/azure-container-url -> https://<cuenta>.blob.core.windows.net/<contenedor>
     {SSM_PREFIX}/backup/sas-secret-name     -> nombre del secreto con el token SAS

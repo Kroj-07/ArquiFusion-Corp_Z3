@@ -1,7 +1,6 @@
 # ArquiFusion Fleet Intelligence — Contrato técnico (v1.3)
 
-Fuente de verdad entre las tres partes (A, B, C) y las IAs que construyen la Parte A.
-Es la transcripción de la sección 6 del "Plan ganador v3" con los ajustes aprobados por el equipo.
+Es el acuerdo entre las tres partes (A, B y C) sobre formatos, endpoints y firmas. Salió de la sección 6 de nuestro plan inicial, con los ajustes que fuimos acordando entre los tres.
 
 **Cómo se cambia:** se propone por escrito. El cambio vale solo cuando los tres lo aceptan y se actualiza este archivo. Agregar un campo opcional se puede hacer avisando. Cambiar nombre, tipo o significado de un campo, o quitarlo, sube `schema_version`.
 

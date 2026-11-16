@@ -39,7 +39,7 @@ os.environ.update(
     }
 )
 
-# La libreria real es de IA-1. Si no esta en el repo, se usa una equivalente (firma sobre "timestamp.cuerpo").
+# La libreria real esta en part-a/shared. Si no esta en el repo, se usa una equivalente (firma sobre "timestamp.cuerpo").
 try:
     from shared import hmac_utils  # noqa: F401
     USING_FAKE_HMAC = False

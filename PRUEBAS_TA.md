@@ -1,6 +1,6 @@
 # Probar ArquiFusion
 
-La URL de Pages, el usuario y la contraseña se entregan en Canvas. Las credenciales no están en este repositorio.
+La URL de Pages se entrega en Canvas. El usuario y la contraseña de evaluación están en el [README principal](README.md).
 
 La flota de demostración contiene catálogos e históricos sintéticos. AWS, Google Cloud y Cloudflare ejecutan servicios reales. El caso de alerta enviada desde GCP a AWS quedó identificado como `ALT-B-TEST-002`, máquina `MCH-999001`, incidente `INC-6EC005997EF2`.
 

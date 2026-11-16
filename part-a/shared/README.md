@@ -1,4 +1,4 @@
-# part-a/shared — Utilidades compartidas (IA-1)
+# part-a/shared — Utilidades compartidas
 
 ## hmac_utils.py
 

@@ -1,4 +1,4 @@
-# Observabilidad (IA-5)
+# Observabilidad
 
 `template.yaml` (SAM/CloudFormation): tópico SNS `af-{env}-alarms`, 8 alarmas, dashboard `af-{env}-fleet`, regla de muestreo y grupo de X-Ray.
 `emf.py`: helper de métricas personalizadas (EMF) sin llamadas a la API. `cost_model.py` + `costs.md`: costo por máquina al mes.
@@ -36,6 +36,6 @@ sam deploy -t part-a/observability/template.yaml --stack-name af-obs-test --regi
 ```
 
 ## Pendiente
-- Sin alarma de API Gateway (falta el id del API en SSM). Sin métricas EMF de ingesta (son de IA-2: usar `emf.py`).
+- Sin alarma de API Gateway (falta el id del API en SSM). Sin métricas EMF de ingesta (son de ingesta: usar `emf.py`).
 - `AWS::XRay::SamplingRule/Group` puede estar restringido en Learner Lab; si falla, comentar esos dos recursos (las Lambdas igual envían trazas con `Tracing: Active`).
 - No se ejecutó `cfn-lint`. Las referencias `{{resolve:ssm:...}}` dentro del cuerpo del dashboard conviene comprobarlas en el primer despliegue.

@@ -13,7 +13,7 @@ Flujo:
     con el mismo cuerpo: la alerta ya guardada se detecta como duplicado y solo se
     republica el evento (bandera ``event_published``).
 
-Suposicion sobre /part-a/shared/hmac_utils.py (IA-1), por confirmar:
+Suposicion sobre /part-a/shared/hmac_utils.py, por confirmar:
     verify_signature(secret: str, timestamp: str, body: str, signature: str) -> bool
 (tambien se aceptan los nombres verify_hmac / verify). La libreria compara en tiempo
 constante y arma la cadena "timestamp.cuerpo"; aqui solo se valida el rango de la marca de tiempo.
@@ -37,7 +37,7 @@ from api.http_utils import (
     response,
 )
 
-try:  # libreria de IA-1
+try:  # libreria compartida (part-a/shared)
     from shared import hmac_utils
 except ImportError:  # se informa al llamar, no al importar (permite pruebas aisladas)
     hmac_utils = None

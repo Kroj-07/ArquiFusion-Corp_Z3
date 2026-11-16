@@ -7,7 +7,7 @@ Precios de lista **us-east-1**, en USD, **sin capa gratuita** (estimación conse
 
 - **Verificados** contra páginas o anuncios oficiales (15-nov-2026): Lambda, DynamoDB on-demand, SQS, Step Functions Standard, CloudWatch (logs, métricas, alarmas, dashboard), S3 Standard y PUT, Pub/Sub, suscripción BigQuery, almacenamiento BigQuery y Azure Blob Hot LRS (East US).
 - **No verificados**: API Gateway HTTP ($1,00/M), X-Ray ($5/M), precio arm64 de Lambda (las funciones son arm64 pero el modelo usa el precio x86, algo más caro: conservador) y operaciones de escritura de Azure Blob (no modeladas). Confirmar en las calculadoras antes de dar la cifra final. Todos están en `cost_model.py`, diccionario `P`.
-- Este modelo **no es una medición**: el plan v3 pide usar también el consumo real de la corrida de carga (`load-tests/runner`); cuando se ejecute, sustituir los supuestos de abajo por lo medido.
+- Este modelo **no es una medición**: el plan pide usar también el consumo real de la corrida de carga (`load-tests/runner`); cuando se ejecute, sustituir los supuestos de abajo por lo medido.
 
 ## Supuestos
 

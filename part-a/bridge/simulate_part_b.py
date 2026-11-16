@@ -3,7 +3,7 @@
 simulate_part_b.py — Simula a la Parte B (Cloud Run) enviando una alerta firmada
 con HMAC a  POST /v1/alerts  de la API de la Parte A.
 
-Autor: IA-4 | Rama: ia4-puente | Carpeta: /part-a/bridge
+Parte A (Kiara) | Carpeta: /part-a/bridge
 
 Firma: usa part-a/shared/hmac_utils.py (contrato v1.2, sección 11):
     mensaje   = "{x-timestamp}.{cuerpo_crudo}"
@@ -16,7 +16,7 @@ Origen de la configuración (nada de secretos en el repo, regla 5):
       2. Secrets Manager  arquifusion/{env}/alert-hmac  (nombre del docstring de hmac_utils)
   - URL base de la API:
       1. --api-url
-      2. SSM  /arquifusion/{env}/api/base-url        (SUPUESTO: confirmar con IA-3 / contrato)
+      2. SSM  /arquifusion/{env}/api/base-url        (confirmar contra el contrato)
 
 Uso:
   python simulate_part_b.py --env test
@@ -37,7 +37,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Importar la librería de IA-1 (part-a/shared) sin copiarla.
+# Importar la librería compartida (part-a/shared) sin copiarla.
 _SHARED = Path(__file__).resolve().parents[1] / "shared"
 sys.path.insert(0, str(_SHARED))
 from hmac_utils import SIGNATURE_HEADER, TIMESTAMP_HEADER, sign_hmac  # noqa: E402

@@ -1,7 +1,7 @@
-# infra/root — Stack raíz (IA-1)
+# infra/root — Stack raíz
 
 Plantilla raíz de CloudFormation/SAM. Hoy solo publica configuración común en SSM;
-cuando las demás IAs entreguen sus plantillas, se descomentan sus stacks anidados.
+cada módulo (datos, ingesta, API, puente, SF-2, observabilidad) se anida desde aquí.
 
 ## Parámetros y variables
 
@@ -43,7 +43,7 @@ us-east-1 o us-west-2.
   SSM, Step Functions, Secrets Manager, Global Tables, SES y Cognito.
 - `sam deploy --resolve-s3` crea un bucket de artefactos administrado por SAM. Si el Lab lo
   bloquea, crear uno a mano y usar `--s3-bucket`.
-- Rutas y nombres de los stacks anidados: cada IA debe confirmar los suyos.
+- Rutas y nombres de los stacks anidados: hay que confirmar que coincidan con las plantillas de cada módulo.
 - Nombres de recursos del contrato (`arquifusion-data`, `arquifusion-events`) frente al prefijo
   `af-`: propuesta de usar `af-{env}-...` y publicarlos en SSM. Pendiente de acuerdo.
 - El nombre del secreto HMAC (`arquifusion/{env}/alert-hmac`) sigue pendiente de acuerdo.

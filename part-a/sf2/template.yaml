@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  ArquiFusion Fleet Intelligence - Parte A - SF-2 Pipeline analitico (IA-5).
+  ArquiFusion Fleet Intelligence - Parte A - SF-2 Pipeline analitico.
   DynamoDB -> BigQuery (mock) -> reentrena por zona (Map) -> evalua -> Choice de promocion.
   Solo serverless, LabRole, prefijo af-.
 
@@ -144,7 +144,7 @@ Resources:
           RoleArn: !Ref LabRoleArn
           Input: '{"force_failure": false, "zones": []}'
 
-  # Nombres publicados en SSM para otras IAs (observabilidad los lee).
+  # Nombres publicados en SSM para otros stacks (observabilidad los lee).
   Sf2ArnParam:
     Type: AWS::SSM::Parameter
     Properties:

@@ -1,4 +1,4 @@
-# Parte A - API REST /v1, eventos y notificaciones (IA-3)
+# Parte A - API REST /v1, eventos y notificaciones
 
 Archivos de esta entrega
 
@@ -88,7 +88,7 @@ sam build  -t infra/api/template.yaml && sam deploy -t infra/api/template.yaml \
    --stack-name af-dev-api --parameter-overrides Env=dev --region us-east-1 --resolve-s3
 ```
 
-Orden: root/persistencia (IA-2) → `events-template` → `template`. Hay que volver a desplegar `template.yaml`
+Orden: root/persistencia → `events-template` → `template`. Hay que volver a desplegar `template.yaml`
 si cambia un valor en SSM, porque los nombres se resuelven al desplegar.
 
 ## Variables de entorno (las pone SAM)
@@ -117,7 +117,7 @@ Códigos `UNAUTHORIZED` (401) y `FORBIDDEN` (403); secreto `jwt-signing`; claves
 
 ## Propuestas nuevas, por confirmar
 
-1. **Persistencia (IA-2) - índices y atributos que la API da por hechos:** Alerts: GSI `zone_id-created_at-index` (zone_id, created_at) y
+1. **Persistencia - índices y atributos que la API da por hechos:** Alerts: GSI `zone_id-created_at-index` (zone_id, created_at) y
    `severity-created_at-index` (severity, created_at); atributos `status` (open/acknowledged/resolved) y `event_published`.
    Incidents: GSI `status-opened_at-index` (status, opened_at) y `incident_id-index` (incident_id); atributo `zone_id` desnormalizado.
    Tablas Telemetry e Inventory publicadas en SSM como `ddb/telemetry-table` y `ddb/inventory-table`.
@@ -125,7 +125,7 @@ Códigos `UNAUTHORIZED` (401) y `FORBIDDEN` (403); secreto `jwt-signing`; claves
    (lo hace SF-1 tras descontar repuestos); atributos `acknowledged_at`, `started_at`, `close_requested_at`.
 3. **Notificaciones:** tabla nueva `af-{env}-notifications` (la crea `events-template.yaml`) y endpoint `GET /notifications`.
 4. **Roles en el JWT:** códigos en inglés (arriba) para los 6 roles de la tabla 6.9.
-5. **`shared/hmac_utils.py` (IA-1):** se asume `verify_signature(secret, timestamp, body, signature) -> bool`
+5. **`shared/hmac_utils.py`:** se asume `verify_signature(secret, timestamp, body, signature) -> bool`
    (o `verify_hmac` / `verify`). Si el nombre o los argumentos son otros, hay que ajustar `_verify` en `alerts.py` (una función).
    `x-timestamp` se acepta en epoch (s o ms) o ISO 8601.
 6. **SF-3 vs notificador:** el notificador ya aplica las reglas 6.9 y envía por SNS/SES. Para no duplicar avisos,
@@ -134,12 +134,12 @@ Códigos `UNAUTHORIZED` (401) y `FORBIDDEN` (403); secreto `jwt-signing`; claves
 
 ## Qué quedó pendiente
 
-- `POST/PATCH /incidents` y `assignment.confirmed` (no asignados a esta entrega).
+- `POST/PATCH /incidents` y `assignment.confirmed` (no los hicimos en esta entrega).
 - No hay forma de emitir JWT en producción: `mint_token.py` sirve para pruebas y demo (no hay login).
 - Teléfonos de técnicos: SNS publica por tópico; el SMS directo necesita un campo de teléfono en Technicians.
 - `LabRole` debe confiar en `events.amazonaws.com` para que la regla dispare SF-1 (por verificar en el Lab). Si no, hace falta una Lambda arrancadora.
 - Cognito no se usa; si el Lab lo permite se puede cambiar el autorizador.
 - SES en modo sandbox: solo correos a direcciones verificadas.
 - Reglas de la tabla 6.9 de resúmenes por turno/día/semana: horarios fijados en UTC (Lima = UTC-5); ajustar en `events-template.yaml`.
-- Sin `sam validate`/`cfn-lint` ni despliegue real en este entorno (solo se validó la sintaxis YAML y las pruebas unitarias).
+- Las pruebas unitarias corren sin AWS; el despliegue real se hizo en el piloto (ver `infra/pilot/GUIA.md`).
 - Paginación de `GET /machines` con `scan` (cómodo hasta unos miles de máquinas); con `MACHINES_BY_ZONE_INDEX` se consulta por zona.
