@@ -58,5 +58,5 @@ class GeminiAssistant:
         return cls(
             project,
             os.environ.get("GOOGLE_CLOUD_LOCATION", "global"),
-            os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
+            os.environ.get("GEMINI_MODEL", "gemini-3.5-flash"),
         )
