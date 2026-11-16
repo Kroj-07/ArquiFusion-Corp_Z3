@@ -40,12 +40,12 @@ SELECT
   fuel_rate_lph,
   fuel_mean_24h,
   CAST(ROUND(100 * (
-    SELECT probability
+    SELECT prob
     FROM UNNEST(predicted_failure_within_48h_probs)
     WHERE CAST(label AS STRING) IN ("TRUE", "true", "1")
   )) AS INT64) AS score,
   (
-    SELECT probability
+    SELECT prob
     FROM UNNEST(predicted_failure_within_48h_probs)
     WHERE CAST(label AS STRING) IN ("TRUE", "true", "1")
   ) AS confidence,
@@ -83,7 +83,7 @@ USING (
       WHEN score >= 75 THEN "inspect_within_24h"
       ELSE "inspect_within_72h"
     END AS recommended_action,
-    ARRAY<STRUCT<metric STRING, observed FLOAT64, expected FLOAT64, window STRING, trend STRING>>[
+    ARRAY<STRUCT<metric STRING, observed FLOAT64, expected FLOAT64, `window` STRING, trend STRING>>[
       STRUCT(
         "engine_temp_c",
         engine_temp_c,
@@ -157,4 +157,4 @@ FROM ML.DETECT_ANOMALIES(
 )
 WHERE is_anomaly;
 
-SELECT * FROM ML.PREDICT(MODEL fleet.machine_peers);
+SELECT * FROM ML.PREDICT(MODEL fleet.machine_peers, (SELECT * FROM fleet.telemetry_features LIMIT 100));

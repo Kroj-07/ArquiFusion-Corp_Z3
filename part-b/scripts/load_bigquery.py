@@ -146,7 +146,7 @@ def load_sample(project, dataset, directory):
     )
     stage_and_merge(
         client, project, dataset, "alerts_out", [
-            {**alert, "delivered_at": None, "is_sample": True}
+            {**{k: v for k, v in alert.items() if k != "schema_version"}, "delivered_at": None, "is_sample": True}
             for alert in read_jsonl(directory / "alerts.jsonl")
         ],
         alert_schema, ("alert_id",),

@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS fleet.alerts_out (
   summary STRING NOT NULL,
   suspected_component STRING NOT NULL,
   recommended_action STRING NOT NULL,
-  evidence ARRAY<STRUCT<metric STRING, observed FLOAT64, expected FLOAT64, window STRING, trend STRING>>,
+  evidence ARRAY<STRUCT<metric STRING, observed FLOAT64, expected FLOAT64, `window` STRING, trend STRING>>,
   related_machine_ids ARRAY<STRING>,
   common_factor STRING,
   delivered_at TIMESTAMP,
